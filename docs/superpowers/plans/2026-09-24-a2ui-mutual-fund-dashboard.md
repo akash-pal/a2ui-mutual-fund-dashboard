@@ -1228,7 +1228,7 @@ export const ComparisonTableApi: ComponentApi<typeof ComparisonTablePropsSchema>
 };
 
 export const ComparisonTable = createComponentImplementation(ComparisonTableApi, ({ props }) => {
-  const rows = (props.rows as Array<Array<string | number>>) ?? [];
+  const rows = Array.isArray(props.rows) ? (props.rows as Array<Array<string | number>>) : [];
   return (
     <Card>
       <CardHeader>
@@ -1337,7 +1337,7 @@ export const RankedListApi: ComponentApi<typeof RankedListPropsSchema> = {
 };
 
 export const RankedList = createComponentImplementation(RankedListApi, ({ props }) => {
-  const items = (props.items as Array<{ name: string; value: string }>) ?? [];
+  const items = Array.isArray(props.items) ? (props.items as Array<{ name: string; value: string }>) : [];
   return (
     <Card>
       <CardHeader>
