@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 3 (NAV-derived metrics) is starting now.
+- Task 4 (deterministic insight text) is starting now.
 
 ## Up next (in order)
 
-3. NAV-derived metrics (trailing returns, CAGR, volatility, drawdown)
 4. Deterministic insight text (no LLM — templated commentary)
 5. Schema cache (reuse agent-composed structure across requests)
 6. Intent resolution (single fund / compare funds / category ranking — no LLM)
@@ -38,3 +37,7 @@ full implementation plan this is executing.
 2. **`mfapi.in` client** (`lib/mfapi.ts`) — typed functions to fetch the full mutual fund
    scheme list and a given scheme's NAV history from the free, no-auth mfapi.in API. 3/3
    tests passing, reviewed clean.
+3. **NAV-derived metrics** (`lib/metrics.ts`) — trailing returns (1M/3M/1Y/3Y/5Y), CAGR,
+   annualized volatility, and max drawdown. Review caught a real date-arithmetic bug (month-end
+   and leap-year dates could pick the wrong reference NAV point); fixed and covered by
+   regression tests verified to actually fail without the fix. 10/10 tests passing.
