@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 6 (intent resolution) is starting now.
+- Task 7 (`StatCard` catalog component) is starting now.
 
 ## Up next (in order)
 
-6. Intent resolution (single fund / compare funds / category ranking — no LLM)
 7. `StatCard` catalog component
 8. `NavChart` catalog component
 9. `ComparisonTable` catalog component
@@ -44,3 +43,8 @@ full implementation plan this is executing.
 5. **Schema cache** (`lib/cache.ts`) — in-memory cache keyed on intent type + catalog version,
    so the agent-composed UI structure can be reused instead of regenerated on every request.
    6/6 tests passing, reviewed clean.
+6. **Intent resolution** (`lib/intent.ts`) — deterministic (no-LLM) classification of a query
+   into single-fund lookup, fund comparison, or category ranking. Review caught 4 real bugs
+   around how the real mfapi.in data (which lists every fund twice, as Direct and Regular Plan
+   entries) could produce ambiguous or self-duplicated results; all fixed and covered by
+   verified-discriminating regression tests. 9/9 tests passing.
