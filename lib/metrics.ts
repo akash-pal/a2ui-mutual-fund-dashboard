@@ -15,6 +15,22 @@ function parseDate(date: string): Date {
   return new Date(year, month - 1, day);
 }
 
+/**
+ * Subtracts calendar months/years from `date`, clamping the day-of-month to
+ * the last valid day of the target month instead of letting it roll over
+ * into a later month (e.g. Mar 31 minus 1 month -> Feb 28, not Mar 3).
+ */
+function subtractCalendar(date: Date, { months = 0, years = 0 }: { months?: number; years?: number }): Date {
+  const day = date.getDate();
+  const d = new Date(date);
+  d.setDate(1);
+  d.setFullYear(d.getFullYear() - years);
+  d.setMonth(d.getMonth() - months);
+  const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, daysInTargetMonth));
+  return d;
+}
+
 /** Returns NAV points sorted most-recent-first, regardless of input order. */
 function sortDescending(nav: NavPoint[]): NavPoint[] {
   return [...nav].sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime());
@@ -31,8 +47,7 @@ function navOnOrBefore(sorted: NavPoint[], target: Date): NavPoint | null {
 }
 
 function periodReturn(sorted: NavPoint[], latest: NavPoint, monthsBack: number, asOf: Date): number | null {
-  const target = new Date(asOf);
-  target.setMonth(target.getMonth() - monthsBack);
+  const target = subtractCalendar(asOf, { months: monthsBack });
   const past = navOnOrBefore(sorted, target);
   if (!past) return null;
   return ((latest.nav - past.nav) / past.nav) * 100;
@@ -57,8 +72,7 @@ export function computeCAGR(nav: NavPoint[], years: number, asOf: Date = new Dat
   const sorted = sortDescending(nav);
   const latest = navOnOrBefore(sorted, asOf) ?? sorted[0];
   if (!latest) return null;
-  const target = new Date(asOf);
-  target.setFullYear(target.getFullYear() - years);
+  const target = subtractCalendar(asOf, { years });
   const past = navOnOrBefore(sorted, target);
   if (!past || past.nav <= 0) return null;
   return (Math.pow(latest.nav / past.nav, 1 / years) - 1) * 100;

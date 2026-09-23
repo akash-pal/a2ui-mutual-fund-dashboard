@@ -39,6 +39,20 @@ describe("computeTrailingReturns", () => {
     expect(result["1M"]).not.toBeNull();
     expect(result["1M"]!).toBeGreaterThan(0);
   });
+
+  it("correctly handles month-end dates (e.g., Mar 31 minus 1 month lands on Feb 28)", () => {
+    // Mar 31 minus 1 month should land on Feb 28, not Mar 3 (which was the bug)
+    // Create a series with data on Feb 28 and Mar 31
+    const series: NavPoint[] = [
+      { date: "31-03-2026", nav: 105 }, // most recent: Mar 31
+      { date: "28-02-2026", nav: 100 }, // 1 month back: Feb 28
+    ];
+    const result = computeTrailingReturns(series, new Date("2026-03-31"));
+    // If the bug existed, it would look for data on Mar 3 instead of Feb 28,
+    // and would fail to find Feb 28. With the fix, it should find Feb 28 and compute 5% return.
+    expect(result["1M"]).not.toBeNull();
+    expect(result["1M"]!).toBeCloseTo(5, 0);
+  });
 });
 
 describe("computeCAGR", () => {
@@ -55,6 +69,20 @@ describe("computeCAGR", () => {
   it("returns null when there isn't enough history", () => {
     const series: NavPoint[] = [{ date: "23-09-2026", nav: 110 }];
     expect(computeCAGR(series, 5, new Date("2026-09-23"))).toBeNull();
+  });
+
+  it("correctly handles leap-year dates (e.g., Feb 29 minus 1 year lands on Feb 28 of prior year)", () => {
+    // Feb 29, 2028 (leap year) minus 1 year should land on Feb 28, 2027 (not Mar 1, 2027 which was the bug)
+    // Create a series with data on Feb 28, 2027 and Feb 29, 2028, with 10% growth
+    const series: NavPoint[] = [
+      { date: "29-02-2028", nav: 110 }, // Feb 29, 2028 (leap year)
+      { date: "28-02-2027", nav: 100 }, // Feb 28, 2027 (not a leap year)
+    ];
+    const cagr = computeCAGR(series, 1, new Date("2028-02-29"));
+    // If the bug existed, it would look for data on Mar 1, 2027 instead of Feb 28, 2027,
+    // and would fail to find Feb 28. With the fix, it should find Feb 28, 2027 and compute ~10% CAGR.
+    expect(cagr).not.toBeNull();
+    expect(cagr!).toBeCloseTo(10, 0);
   });
 });
 
