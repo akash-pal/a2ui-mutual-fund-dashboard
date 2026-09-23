@@ -45,4 +45,25 @@ describe("resolveIntent", () => {
     expect(result.type).toBe("single_fund");
     expect(result.schemeCodes).toEqual([]);
   });
+
+  it("de-duplicates a fund's Direct and Regular plan entries into a single match", () => {
+    const pairedSchemes: SchemeListEntry[] = [
+      { schemeCode: 10, schemeName: "Sample Bluechip Fund - Regular Plan" },
+      { schemeCode: 11, schemeName: "Sample Bluechip Fund - Direct Plan" },
+    ];
+    const result = resolveIntent("How has the Sample Bluechip Fund performed?", pairedSchemes);
+    expect(result.type).toBe("single_fund");
+    expect(result.schemeCodes).toEqual([11]); // prefers the Direct Plan entry
+  });
+
+  it("does not report a self-vs-self comparison as compare_funds with duplicate codes", () => {
+    const result = resolveIntent("Example Flexi Cap Fund vs Example Flexi Cap Fund", schemes);
+    expect(result.type).not.toBe("compare_funds");
+    expect(new Set(result.schemeCodes).size).toBe(result.schemeCodes.length);
+  });
+
+  it("resolves category ranking to the category mentioned first in the query, not array order", () => {
+    const result = resolveIntent("Show me the best multi cap and large cap funds", schemes);
+    expect(result.category).toBe("multi cap");
+  });
 });
