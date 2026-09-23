@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 2 (`mfapi.in` client) is starting now.
+- Task 3 (NAV-derived metrics) is starting now.
 
 ## Up next (in order)
 
-2. `mfapi.in` client (scheme list + NAV history)
 3. NAV-derived metrics (trailing returns, CAGR, volatility, drawdown)
 4. Deterministic insight text (no LLM — templated commentary)
 5. Schema cache (reuse agent-composed structure across requests)
@@ -36,3 +35,6 @@ full implementation plan this is executing.
    `npm run build`, and `npm run lint` all pass clean. One toolchain note: this Next.js/Tailwind
    version configures Tailwind via `app/globals.css` (`@theme`) rather than a separate
    `tailwind.config.ts` file — that's current Tailwind v4 behavior, not a gap.
+2. **`mfapi.in` client** (`lib/mfapi.ts`) — typed functions to fetch the full mutual fund
+   scheme list and a given scheme's NAV history from the free, no-auth mfapi.in API. 3/3
+   tests passing, reviewed clean.
