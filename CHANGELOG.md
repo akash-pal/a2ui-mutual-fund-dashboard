@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 7 (`StatCard` catalog component) is starting now.
+- Task 8 (`NavChart` catalog component) is starting now.
 
 ## Up next (in order)
 
-7. `StatCard` catalog component
 8. `NavChart` catalog component
 9. `ComparisonTable` catalog component
 10. `RankedList` catalog component
@@ -48,3 +47,9 @@ full implementation plan this is executing.
    around how the real mfapi.in data (which lists every fund twice, as Direct and Regular Plan
    entries) could produce ambiguous or self-duplicated results; all fixed and covered by
    verified-discriminating regression tests. 9/9 tests passing.
+7. **`StatCard` catalog component** (`components/catalog/StatCard.tsx`) — the first UI component
+   wired to the real A2UI protocol. Found and fixed a real dependency conflict: this project's
+   zod (needed for the AI SDK) and the zod bundled inside the A2UI packages are incompatible
+   major versions. Added an aliased zod3 dependency as the fix and pre-emptively applied the
+   same fix to the plan for the four remaining catalog components, so they won't hit the same
+   issue. 3/3 component tests passing, full suite 36/36, reviewed clean.
