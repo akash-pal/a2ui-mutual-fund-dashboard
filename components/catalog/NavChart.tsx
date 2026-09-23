@@ -15,7 +15,7 @@ export const NavChartApi: ComponentApi<typeof NavChartPropsSchema> = {
 };
 
 export const NavChart = createComponentImplementation(NavChartApi, ({ props }) => {
-  const points = (props.points as Array<{ date: string; nav: number }>) ?? [];
+  const points = Array.isArray(props.points) ? (props.points as Array<{ date: string; nav: number }>) : [];
   return (
     <Card>
       <CardHeader>
