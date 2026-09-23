@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 5 (schema cache) is starting now.
+- Task 6 (intent resolution) is starting now.
 
 ## Up next (in order)
 
-5. Schema cache (reuse agent-composed structure across requests)
 6. Intent resolution (single fund / compare funds / category ranking — no LLM)
 7. `StatCard` catalog component
 8. `NavChart` catalog component
@@ -42,3 +41,6 @@ full implementation plan this is executing.
    regression tests verified to actually fail without the fix. 10/10 tests passing.
 4. **Deterministic insight text** (`lib/insights.ts`) — templated, no-LLM commentary for a
    single fund, a fund comparison, and a category ranking. 4/4 tests passing, reviewed clean.
+5. **Schema cache** (`lib/cache.ts`) — in-memory cache keyed on intent type + catalog version,
+   so the agent-composed UI structure can be reused instead of regenerated on every request.
+   6/6 tests passing, reviewed clean.
