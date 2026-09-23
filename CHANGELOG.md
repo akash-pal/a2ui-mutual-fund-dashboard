@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 9 (`ComparisonTable` catalog component) is starting now.
+- Task 10 (`RankedList` catalog component) is starting now.
 
 ## Up next (in order)
 
-9. `ComparisonTable` catalog component
 10. `RankedList` catalog component
 11. `InsightCallout` catalog component
 12. Wire the five components into the real A2UI catalog + message schema
@@ -56,3 +55,5 @@ full implementation plan this is executing.
    for NAV history. Review caught a missing runtime guard against non-array bound data before
    handing it to Recharts; fixed here and pre-emptively in the plan for the two remaining table/
    list components. 2/2 tests passing, reviewed clean.
+9. **`ComparisonTable` catalog component** (`components/catalog/ComparisonTable.tsx`) — a shadcn
+   table for comparing multiple funds side by side. 3/3 tests passing, reviewed clean.
