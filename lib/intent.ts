@@ -14,14 +14,21 @@ function cleanSchemeName(name: string): string {
   return name.toLowerCase().replace(/ - direct plan| - regular plan/g, "").trim();
 }
 
-/** Finds the scheme whose (cleaned) name appears inside `text`, preferring the longest match. */
+/** Finds the scheme whose (cleaned) name appears inside `text`, preferring the
+ * longest match, then preferring the Direct Plan entry on a length tie. */
 function findSchemeCode(text: string, schemes: SchemeListEntry[]): number | null {
   const normalized = text.toLowerCase().trim();
-  let best: { schemeCode: number; length: number } | null = null;
+  let best: { schemeCode: number; length: number; isDirect: boolean } | null = null;
   for (const scheme of schemes) {
     const cleaned = cleanSchemeName(scheme.schemeName);
-    if (normalized.includes(cleaned) && (!best || cleaned.length > best.length)) {
-      best = { schemeCode: scheme.schemeCode, length: cleaned.length };
+    if (!normalized.includes(cleaned)) continue;
+    const isDirect = scheme.schemeName.toLowerCase().includes("direct plan");
+    const isBetter =
+      !best ||
+      cleaned.length > best.length ||
+      (cleaned.length === best.length && isDirect && !best.isDirect);
+    if (isBetter) {
+      best = { schemeCode: scheme.schemeCode, length: cleaned.length, isDirect };
     }
   }
   return best?.schemeCode ?? null;

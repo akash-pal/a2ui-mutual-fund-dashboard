@@ -66,4 +66,15 @@ describe("resolveIntent", () => {
     const result = resolveIntent("Show me the best multi cap and large cap funds", schemes);
     expect(result.category).toBe("multi cap");
   });
+
+  it("prefers the Direct Plan entry when comparing a fund that has both Direct and Regular listings", () => {
+    const pairedSchemes: SchemeListEntry[] = [
+      { schemeCode: 20, schemeName: "Sample Bluechip Fund - Regular Plan" },
+      { schemeCode: 21, schemeName: "Sample Bluechip Fund - Direct Plan" },
+      { schemeCode: 22, schemeName: "Sample Largecap Fund - Direct Plan" },
+    ];
+    const result = resolveIntent("Sample Bluechip Fund vs Sample Largecap Fund", pairedSchemes);
+    expect(result.type).toBe("compare_funds");
+    expect(result.schemeCodes.sort()).toEqual([21, 22]);
+  });
 });
