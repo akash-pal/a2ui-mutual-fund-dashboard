@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 4 (deterministic insight text) is starting now.
+- Task 5 (schema cache) is starting now.
 
 ## Up next (in order)
 
-4. Deterministic insight text (no LLM — templated commentary)
 5. Schema cache (reuse agent-composed structure across requests)
 6. Intent resolution (single fund / compare funds / category ranking — no LLM)
 7. `StatCard` catalog component
@@ -41,3 +40,5 @@ full implementation plan this is executing.
    annualized volatility, and max drawdown. Review caught a real date-arithmetic bug (month-end
    and leap-year dates could pick the wrong reference NAV point); fixed and covered by
    regression tests verified to actually fail without the fix. 10/10 tests passing.
+4. **Deterministic insight text** (`lib/insights.ts`) — templated, no-LLM commentary for a
+   single fund, a fund comparison, and a category ranking. 4/4 tests passing, reviewed clean.
