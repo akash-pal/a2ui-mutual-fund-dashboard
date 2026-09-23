@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 8 (`NavChart` catalog component) is starting now.
+- Task 9 (`ComparisonTable` catalog component) is starting now.
 
 ## Up next (in order)
 
-8. `NavChart` catalog component
 9. `ComparisonTable` catalog component
 10. `RankedList` catalog component
 11. `InsightCallout` catalog component
@@ -53,3 +52,7 @@ full implementation plan this is executing.
    major versions. Added an aliased zod3 dependency as the fix and pre-emptively applied the
    same fix to the plan for the four remaining catalog components, so they won't hit the same
    issue. 3/3 component tests passing, full suite 36/36, reviewed clean.
+8. **`NavChart` catalog component** (`components/catalog/NavChart.tsx`) — a Recharts line chart
+   for NAV history. Review caught a missing runtime guard against non-array bound data before
+   handing it to Recharts; fixed here and pre-emptively in the plan for the two remaining table/
+   list components. 2/2 tests passing, reviewed clean.
