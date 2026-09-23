@@ -41,15 +41,20 @@ describe("computeTrailingReturns", () => {
   });
 
   it("correctly handles month-end dates (e.g., Mar 31 minus 1 month lands on Feb 28)", () => {
-    // Mar 31 minus 1 month should land on Feb 28, not Mar 3 (which was the bug)
-    // Create a series with data on Feb 28 and Mar 31
+    // asOf = Mar 31, 2026. Correct target (fixed): Feb 28, 2026.
+    // Buggy target (old raw setMonth): Mar 31 -> setMonth(Feb) on a 31-day value
+    // overflows Feb's 28 days by 3, landing on Mar 3, 2026 — that's why this
+    // fixture has a point AT Mar 1, 2026 with a distinct NAV: old code would
+    // wrongly match that point instead of Feb 28.
     const series: NavPoint[] = [
-      { date: "31-03-2026", nav: 105 }, // most recent: Mar 31
-      { date: "28-02-2026", nav: 100 }, // 1 month back: Feb 28
+      { date: "31-03-2026", nav: 105 }, // latest
+      { date: "01-03-2026", nav: 102 }, // sits at the OLD buggy target — must NOT be picked
+      { date: "28-02-2026", nav: 100 }, // correct 1-month-back target
     ];
     const result = computeTrailingReturns(series, new Date("2026-03-31"));
-    // If the bug existed, it would look for data on Mar 3 instead of Feb 28,
-    // and would fail to find Feb 28. With the fix, it should find Feb 28 and compute 5% return.
+    // Fixed code finds Feb 28 (nav 100) -> (105-100)/100*100 = 5%.
+    // Buggy code would find Mar 1 (nav 102) -> (105-102)/102*100 ≈ 2.94%, which
+    // fails this assertion (diff > 0.5), proving the fixture is discriminating.
     expect(result["1M"]).not.toBeNull();
     expect(result["1M"]!).toBeCloseTo(5, 0);
   });
@@ -72,15 +77,20 @@ describe("computeCAGR", () => {
   });
 
   it("correctly handles leap-year dates (e.g., Feb 29 minus 1 year lands on Feb 28 of prior year)", () => {
-    // Feb 29, 2028 (leap year) minus 1 year should land on Feb 28, 2027 (not Mar 1, 2027 which was the bug)
-    // Create a series with data on Feb 28, 2027 and Feb 29, 2028, with 10% growth
+    // asOf = Feb 29, 2028 (leap year). Correct target (fixed): Feb 28, 2027.
+    // Buggy target (old raw setFullYear): Feb 29, 2028 -> setFullYear(2027) on
+    // Feb 29 in a non-leap year overflows to Mar 1, 2027 — that's why this
+    // fixture has a point AT Mar 1, 2027 with a distinct NAV: old code would
+    // wrongly match that point instead of Feb 28, 2027.
     const series: NavPoint[] = [
-      { date: "29-02-2028", nav: 110 }, // Feb 29, 2028 (leap year)
-      { date: "28-02-2027", nav: 100 }, // Feb 28, 2027 (not a leap year)
+      { date: "29-02-2028", nav: 110 }, // latest
+      { date: "01-03-2027", nav: 103 }, // sits at the OLD buggy target — must NOT be picked
+      { date: "28-02-2027", nav: 100 }, // correct 1-year-back target
     ];
     const cagr = computeCAGR(series, 1, new Date("2028-02-29"));
-    // If the bug existed, it would look for data on Mar 1, 2027 instead of Feb 28, 2027,
-    // and would fail to find Feb 28. With the fix, it should find Feb 28, 2027 and compute ~10% CAGR.
+    // Fixed code finds Feb 28, 2027 (nav 100) -> (110/100 - 1)*100 = 10%.
+    // Buggy code would find Mar 1, 2027 (nav 103) -> (110/103 - 1)*100 ≈ 6.8%,
+    // which fails this assertion (diff > 0.5), proving the fixture is discriminating.
     expect(cagr).not.toBeNull();
     expect(cagr!).toBeCloseTo(10, 0);
   });
