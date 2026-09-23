@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Nothing shipped yet — implementation is starting now (Task 1: project scaffold).
+- Task 2 (`mfapi.in` client) is starting now.
 
 ## Up next (in order)
 
-1. Project scaffold (Next.js, Tailwind, shadcn/ui, Vitest)
 2. `mfapi.in` client (scheme list + NAV history)
 3. NAV-derived metrics (trailing returns, CAGR, volatility, drawdown)
 4. Deterministic insight text (no LLM — templated commentary)
@@ -32,4 +31,8 @@ full implementation plan this is executing.
 
 ## Done
 
-(Nothing yet.)
+1. **Project scaffold** — Next.js 16 + TypeScript + App Router, Tailwind CSS v4, shadcn/ui
+   (button/input/card/table), Vitest + React Testing Library. `npm run dev`, `npm test`,
+   `npm run build`, and `npm run lint` all pass clean. One toolchain note: this Next.js/Tailwind
+   version configures Tailwind via `app/globals.css` (`@theme`) rather than a separate
+   `tailwind.config.ts` file — that's current Tailwind v4 behavior, not a gap.
