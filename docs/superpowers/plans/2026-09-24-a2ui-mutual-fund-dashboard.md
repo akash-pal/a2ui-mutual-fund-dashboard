@@ -998,7 +998,7 @@ Expected: FAIL — `components/catalog/StatCard.tsx` does not exist.
 `components/catalog/StatCard.tsx`:
 
 ```tsx
-import { z } from "zod";
+import { z } from "zod3";
 import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1092,7 +1092,7 @@ Expected: FAIL — `components/catalog/NavChart.tsx` does not exist.
 `components/catalog/NavChart.tsx`:
 
 ```tsx
-import { z } from "zod";
+import { z } from "zod3";
 import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -1203,7 +1203,7 @@ Expected: FAIL — `components/catalog/ComparisonTable.tsx` does not exist.
 `components/catalog/ComparisonTable.tsx`:
 
 ```tsx
-import { z } from "zod";
+import { z } from "zod3";
 import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import {
@@ -1321,7 +1321,7 @@ Expected: FAIL — `components/catalog/RankedList.tsx` does not exist.
 `components/catalog/RankedList.tsx`:
 
 ```tsx
-import { z } from "zod";
+import { z } from "zod3";
 import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1416,7 +1416,7 @@ Expected: FAIL — `components/catalog/InsightCallout.tsx` does not exist.
 `components/catalog/InsightCallout.tsx`:
 
 ```tsx
-import { z } from "zod";
+import { z } from "zod3";
 import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 
@@ -1561,7 +1561,7 @@ Expected: FAIL — `lib/catalog.ts` does not exist.
 `lib/catalog.ts`:
 
 ```typescript
-import { z } from "zod";
+import { z } from "zod3";
 import { Catalog, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { StatCardApi, StatCard, StatCardPropsSchema } from "@/components/catalog/StatCard";
 import { NavChartApi, NavChart, NavChartPropsSchema } from "@/components/catalog/NavChart";
