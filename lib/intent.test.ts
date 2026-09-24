@@ -104,4 +104,19 @@ describe("resolveIntent", () => {
     expect(result.type).toBe("category_ranking");
     expect(result.schemeCodes).toEqual([118955]);
   });
+
+  it("prefers Growth over IDCW even when the fund's own name contains the word 'Growth'", () => {
+    // Real fund: a bare `.includes("growth")` check would false-positive on the base
+    // name itself ("Nippon India Growth Mid Cap Fund"), making Growth-vs-IDCW selection
+    // depend on array order instead of correctly reading the trailing option suffix.
+    const realisticSchemes: SchemeListEntry[] = [
+      { schemeCode: 100375, schemeName: "Nippon India Growth Mid Cap Fund - Regular Plan - IDCW Option" },
+      { schemeCode: 100377, schemeName: "Nippon India Growth Mid Cap Fund - Regular Plan - Growth Option" },
+      { schemeCode: 118666, schemeName: "Nippon India Growth Mid Cap Fund - Direct Plan - IDCW Option" },
+      { schemeCode: 118668, schemeName: "Nippon India Growth Mid Cap Fund - Direct Plan - Growth Option" },
+    ];
+    const result = resolveIntent("How has Nippon India Growth Mid Cap Fund done?", realisticSchemes);
+    expect(result.type).toBe("single_fund");
+    expect(result.schemeCodes).toEqual([118668]);
+  });
 });

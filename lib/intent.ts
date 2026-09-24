@@ -23,14 +23,20 @@ function cleanSchemeName(name: string): string {
     .trim();
 }
 
+// Matched against the same " - <suffix>" delimited form cleanSchemeName strips --
+// a bare `.includes("growth")` would false-positive on funds whose own name
+// contains that word (e.g. the real "Nippon India Growth Mid Cap Fund").
+const DIRECT_SUFFIX = / - direct plan/i;
+const GROWTH_SUFFIX = / - growth option| - growth\b/i;
+
 function isDirectVariant(schemeName: string): boolean {
-  return schemeName.toLowerCase().includes("direct plan");
+  return DIRECT_SUFFIX.test(schemeName);
 }
 
 /** Growth reinvests returns into NAV and is what "how has this fund done" means by
  * convention; IDCW/Dividend variants pay out and have a lower, less representative NAV. */
 function isGrowthVariant(schemeName: string): boolean {
-  return schemeName.toLowerCase().includes("growth");
+  return GROWTH_SUFFIX.test(schemeName);
 }
 
 /** True if `candidate` should replace `current` as the preferred variant for the
