@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-All 18 planned tasks are complete. The final whole-branch review found the app was
-broken end to end (see below) — that's fixed, along with every other significant
-finding from that review, including the last one (weak validation of the AI's
-generated page structure). What's left is a handful of smaller, lower-impact
-findings from the same review before this is ready to merge.
+All 18 planned tasks are complete, and every finding from the final whole-branch
+review has been addressed, including one significant bug (see below) found only by
+testing live against the real APIs. What's left is a final closing pass over the
+whole branch before this is ready to merge.
 
 ## Final review findings
 
@@ -79,8 +78,20 @@ Also fixed:
   small existing prompt/schema mismatch that was flagged but not yet acted on).
   Confirmed fixed against the real OpenAI API, not just automated tests.
 
-Still being worked through: a handful of smaller, lower-impact findings from the
-same review (see the plan's task list for details) before this is ready to merge.
+- Cleaned up several smaller findings from the same review: a generic browser error
+  page could show instead of a helpful message when something unexpected failed
+  server-side (confirmed and fixed after seeing it happen live during today's
+  testing); the full mutual fund list (tens of thousands of entries) was being
+  re-downloaded from the data source on every single question instead of being
+  reused for an hour; an unused library dependency was removed; the browser tab
+  title still said the default "Create Next App" (also seen live today); a
+  documentation claim about which metrics the app analyzes was corrected to match
+  what's actually shown; and two basic request-size safeguards were added (a
+  sensible limit on how long a question can be, and on how large the request
+  itself can be) as routine hardening.
+
+All planned work and every finding from the final review are now addressed. What's
+left before this is ready to merge is a final closing pass over the whole branch.
 
 ## Done
 
