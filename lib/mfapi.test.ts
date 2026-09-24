@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchSchemeList, fetchSchemeNav } from "./mfapi";
+import { fetchSchemeList, fetchSchemeNav, clearSchemeListCache } from "./mfapi";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  clearSchemeListCache();
 });
 
 describe("fetchSchemeList", () => {
@@ -32,6 +33,36 @@ describe("fetchSchemeList", () => {
     );
 
     await expect(fetchSchemeList()).rejects.toThrow("mfapi.in scheme list request failed: 500");
+  });
+
+  it("does not re-fetch on a second call within the cache TTL", async () => {
+    const mockData = [{ schemeCode: 1, schemeName: "Example Fund" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockData) })
+    );
+
+    await fetchSchemeList();
+    const result = await fetchSchemeList();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(mockData);
+  });
+
+  it("re-fetches after the cache is cleared", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([{ schemeCode: 1, schemeName: "Example Fund" }]),
+      })
+    );
+
+    await fetchSchemeList();
+    clearSchemeListCache();
+    await fetchSchemeList();
+
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 

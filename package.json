@@ -15,7 +15,6 @@
     "@ai-sdk/anthropic": "^4.0.61",
     "@ai-sdk/openai": "^4.0.73",
     "@base-ui/react": "^1.8.0",
-    "@tanstack/react-table": "^9.2.4",
     "ai": "^7.0.112",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",

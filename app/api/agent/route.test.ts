@@ -54,4 +54,21 @@ describe("POST /api/agent", () => {
     expect(res.status).toBe(400);
     expect(buildA2uiResponse).not.toHaveBeenCalled();
   });
+
+  it("returns a JSON error body (not Next.js's default error page) when an unexpected error is thrown", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(buildA2uiResponse).mockRejectedValue(new Error("LLM provider unreachable"));
+    const req = new Request("http://localhost/api/agent", {
+      method: "POST",
+      body: JSON.stringify({ query: "How has the Example Flexi Cap Fund done?" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    // The client only shows a helpful message when `error` is present in the JSON
+    // body (see app/page.tsx's handleSubmit) -- this is what that fix guards.
+    expect(typeof body.error).toBe("string");
+    expect(body.error.length).toBeGreaterThan(0);
+    consoleError.mockRestore();
+  });
 });
