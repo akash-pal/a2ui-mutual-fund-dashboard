@@ -29,4 +29,40 @@ describe("A2UISurfaceList", () => {
     const { container } = render(<A2UISurfaceList messages={[]} />);
     expect(container.textContent).toBe("");
   });
+
+  it("processes a second, unrelated message set without throwing (each query replaces the previous processor)", () => {
+    const firstMessages: A2uiMessage[] = [
+      { version: "v0.9", createSurface: { surfaceId: "stat", catalogId: CATALOG_ID } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "stat",
+          components: [
+            { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+          ],
+        },
+      },
+      { version: "v0.9", updateDataModel: { surfaceId: "stat", value: { statValue: "+18.4%" } } },
+    ];
+    const secondMessages: A2uiMessage[] = [
+      { version: "v0.9", createSurface: { surfaceId: "stat", catalogId: CATALOG_ID } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "stat",
+          components: [
+            { component: "StatCard", id: "root", label: "3-Year Return", value: { path: "/statValue" } },
+          ],
+        },
+      },
+      { version: "v0.9", updateDataModel: { surfaceId: "stat", value: { statValue: "+42.0%" } } },
+    ];
+
+    const { rerender } = render(<A2UISurfaceList messages={firstMessages} />);
+    expect(screen.getByText("1-Year Return")).toBeInTheDocument();
+
+    expect(() => rerender(<A2UISurfaceList messages={secondMessages} />)).not.toThrow();
+    expect(screen.getByText("3-Year Return")).toBeInTheDocument();
+    expect(screen.getByText("+42.0%")).toBeInTheDocument();
+  });
 });

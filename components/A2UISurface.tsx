@@ -6,7 +6,9 @@ import { A2uiSurface, type ReactComponentImplementation } from "@a2ui/react/v0_9
 import { appCatalog, type A2uiMessage } from "@/lib/catalog";
 
 export function A2UISurfaceList({ messages }: { messages: A2uiMessage[] }) {
-  const processor = useMemo(() => new MessageProcessor([appCatalog]), []);
+  // Recreate processor for each message set to avoid duplicate-surface crashes on re-renders
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const processor = useMemo(() => new MessageProcessor([appCatalog]), [messages]);
   const [surfaces, setSurfaces] = useState<SurfaceModel<ReactComponentImplementation>[]>([]);
 
   useEffect(() => {
