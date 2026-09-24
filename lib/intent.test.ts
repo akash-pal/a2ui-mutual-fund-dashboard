@@ -77,4 +77,31 @@ describe("resolveIntent", () => {
     expect(result.type).toBe("compare_funds");
     expect(result.schemeCodes.sort()).toEqual([21, 22]);
   });
+
+  it("matches a fund whose real-world listing always carries a Growth/IDCW option suffix", () => {
+    // Every real mfapi.in scheme name ends in "- Growth Option"/"- IDCW Option" (or
+    // similar) on top of the Direct/Regular Plan qualifier -- a plain query naming
+    // just the fund must still match, and should prefer the Direct + Growth variant.
+    const realisticSchemes: SchemeListEntry[] = [
+      { schemeCode: 101762, schemeName: "HDFC Flexi Cap Fund - Regular Plan - Growth Option" },
+      { schemeCode: 101763, schemeName: "HDFC Flexi Cap Fund - Regular Plan - IDCW Option" },
+      { schemeCode: 118954, schemeName: "HDFC Flexi Cap Fund - Direct Plan - IDCW Option" },
+      { schemeCode: 118955, schemeName: "HDFC Flexi Cap Fund - Direct Plan - Growth Option" },
+    ];
+    const result = resolveIntent("How has HDFC Flexi Cap Fund done?", realisticSchemes);
+    expect(result.type).toBe("single_fund");
+    expect(result.schemeCodes).toEqual([118955]);
+  });
+
+  it("de-duplicates Direct/Regular x Growth/IDCW variants in a category ranking, one entry per fund", () => {
+    const realisticSchemes: SchemeListEntry[] = [
+      { schemeCode: 101762, schemeName: "HDFC Flexi Cap Fund - Regular Plan - Growth Option" },
+      { schemeCode: 101763, schemeName: "HDFC Flexi Cap Fund - Regular Plan - IDCW Option" },
+      { schemeCode: 118954, schemeName: "HDFC Flexi Cap Fund - Direct Plan - IDCW Option" },
+      { schemeCode: 118955, schemeName: "HDFC Flexi Cap Fund - Direct Plan - Growth Option" },
+    ];
+    const result = resolveIntent("Show me the best flexi cap funds", realisticSchemes);
+    expect(result.type).toBe("category_ranking");
+    expect(result.schemeCodes).toEqual([118955]);
+  });
 });

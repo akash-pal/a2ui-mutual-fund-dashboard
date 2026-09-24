@@ -10,50 +10,84 @@ export interface ResolvedIntent {
 
 const CATEGORY_KEYWORDS = ["large cap", "mid cap", "small cap", "flexi cap", "multi cap", "elss"];
 
+/** Strips the plan (Direct/Regular) and option (Growth/IDCW/Dividend) suffixes that
+ * every real mfapi.in scheme name carries, so "Fund X - Direct Plan - Growth Option"
+ * and "Fund X - Regular Plan - IDCW Option" both reduce to the same base "fund x". */
 function cleanSchemeName(name: string): string {
-  return name.toLowerCase().replace(/ - direct plan| - regular plan/g, "").trim();
+  return name
+    .toLowerCase()
+    .replace(
+      / - direct plan| - regular plan| - growth option| - idcw option| - dividend option| - growth| - idcw| - dividend/g,
+      ""
+    )
+    .trim();
+}
+
+function isDirectVariant(schemeName: string): boolean {
+  return schemeName.toLowerCase().includes("direct plan");
+}
+
+/** Growth reinvests returns into NAV and is what "how has this fund done" means by
+ * convention; IDCW/Dividend variants pay out and have a lower, less representative NAV. */
+function isGrowthVariant(schemeName: string): boolean {
+  return schemeName.toLowerCase().includes("growth");
+}
+
+/** True if `candidate` should replace `current` as the preferred variant for the
+ * same cleaned base name: Direct over Regular, then Growth over IDCW/Dividend. */
+function isPreferredVariant(candidate: SchemeListEntry, current: SchemeListEntry): boolean {
+  const candidateIsDirect = isDirectVariant(candidate.schemeName);
+  const currentIsDirect = isDirectVariant(current.schemeName);
+  if (candidateIsDirect !== currentIsDirect) return candidateIsDirect;
+  const candidateIsGrowth = isGrowthVariant(candidate.schemeName);
+  const currentIsGrowth = isGrowthVariant(current.schemeName);
+  return candidateIsGrowth && !currentIsGrowth;
+}
+
+/** Deduplicates schemes that share a cleaned base name (the same fund listed under
+ * multiple Direct/Regular x Growth/IDCW/Dividend variants), keeping one preferred
+ * entry per fund. */
+function dedupeByCleanedName(schemes: SchemeListEntry[]): SchemeListEntry[] {
+  const bestByCleanedName = new Map<string, SchemeListEntry>();
+  for (const scheme of schemes) {
+    const cleaned = cleanSchemeName(scheme.schemeName);
+    const existing = bestByCleanedName.get(cleaned);
+    if (!existing || isPreferredVariant(scheme, existing)) {
+      bestByCleanedName.set(cleaned, scheme);
+    }
+  }
+  return Array.from(bestByCleanedName.values());
 }
 
 /** Finds the scheme whose (cleaned) name appears inside `text`, preferring the
- * longest match, then preferring the Direct Plan entry on a length tie. */
+ * longest match, then the preferred Direct/Growth variant on a length tie. */
 function findSchemeCode(text: string, schemes: SchemeListEntry[]): number | null {
   const normalized = text.toLowerCase().trim();
-  let best: { schemeCode: number; length: number; isDirect: boolean } | null = null;
+  let best: { scheme: SchemeListEntry; length: number } | null = null;
   for (const scheme of schemes) {
     const cleaned = cleanSchemeName(scheme.schemeName);
     if (!normalized.includes(cleaned)) continue;
-    const isDirect = scheme.schemeName.toLowerCase().includes("direct plan");
     const isBetter =
       !best ||
       cleaned.length > best.length ||
-      (cleaned.length === best.length && isDirect && !best.isDirect);
+      (cleaned.length === best.length && isPreferredVariant(scheme, best.scheme));
     if (isBetter) {
-      best = { schemeCode: scheme.schemeCode, length: cleaned.length, isDirect };
+      best = { scheme, length: cleaned.length };
     }
   }
-  return best?.schemeCode ?? null;
+  return best?.scheme.schemeCode ?? null;
 }
 
 /**
  * Finds every distinct scheme mentioned in `query`. Real mfapi.in data lists the
- * same fund twice — once as a Direct Plan, once as a Regular Plan — so this
- * de-duplicates by cleaned name, preferring the Direct Plan entry when a query
- * names a fund with no plan qualifier (the common phrasing).
+ * same fund multiple times -- Direct/Regular Plan crossed with Growth/IDCW/Dividend
+ * option -- so this de-duplicates by cleaned name, preferring the Direct+Growth
+ * entry when a query names a fund with no plan/option qualifier (the common phrasing).
  */
 function findAllSchemesInQuery(query: string, schemes: SchemeListEntry[]): number[] {
   const lowerQuery = query.toLowerCase();
-  const bestByCleanedName = new Map<string, SchemeListEntry>();
-  for (const scheme of schemes) {
-    const cleaned = cleanSchemeName(scheme.schemeName);
-    if (!lowerQuery.includes(cleaned)) continue;
-    const existing = bestByCleanedName.get(cleaned);
-    const isDirect = scheme.schemeName.toLowerCase().includes("direct plan");
-    const existingIsDirect = existing?.schemeName.toLowerCase().includes("direct plan") ?? false;
-    if (!existing || (isDirect && !existingIsDirect)) {
-      bestByCleanedName.set(cleaned, scheme);
-    }
-  }
-  return Array.from(bestByCleanedName.values()).map((s) => s.schemeCode);
+  const matching = schemes.filter((scheme) => lowerQuery.includes(cleanSchemeName(scheme.schemeName)));
+  return dedupeByCleanedName(matching).map((s) => s.schemeCode);
 }
 
 /**
@@ -91,9 +125,8 @@ export function resolveIntent(query: string, schemes: SchemeListEntry[]): Resolv
 
   const category = findCategoryInQuery(lowerQuery);
   if (category && /\bbest\b|\btop\b/.test(lowerQuery)) {
-    const schemeCodes = schemes
-      .filter((s) => s.schemeName.toLowerCase().includes(category))
-      .map((s) => s.schemeCode);
+    const matching = schemes.filter((s) => s.schemeName.toLowerCase().includes(category));
+    const schemeCodes = dedupeByCleanedName(matching).map((s) => s.schemeCode);
     return { type: "category_ranking", schemeCodes, category };
   }
 

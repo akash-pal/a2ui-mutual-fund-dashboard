@@ -11,6 +11,14 @@ export async function POST(request: Request): Promise<Response> {
 
   const schemes = await fetchSchemeList();
   const intent = resolveIntent(query, schemes);
+
+  if (intent.schemeCodes.length === 0) {
+    return Response.json(
+      { error: "Couldn't find a mutual fund matching your query. Try naming the fund more specifically." },
+      { status: 400 }
+    );
+  }
+
   const messages = await buildA2uiResponse(intent);
 
   return Response.json({ messages });

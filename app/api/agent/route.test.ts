@@ -12,6 +12,7 @@ import { buildA2uiResponse } from "@/lib/agent";
 import { POST } from "./route";
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.mocked(fetchSchemeList).mockResolvedValue([
     { schemeCode: 1, schemeName: "Example Flexi Cap Fund" },
   ]);
@@ -42,5 +43,15 @@ describe("POST /api/agent", () => {
     expect(buildA2uiResponse).toHaveBeenCalledWith(
       expect.objectContaining({ type: "single_fund", schemeCodes: [1] })
     );
+  });
+
+  it("returns 400 without calling buildA2uiResponse when no fund matches the query", async () => {
+    const req = new Request("http://localhost/api/agent", {
+      method: "POST",
+      body: JSON.stringify({ query: "What's the weather today?" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect(buildA2uiResponse).not.toHaveBeenCalled();
   });
 });
