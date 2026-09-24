@@ -1853,6 +1853,7 @@ beforeEach(() => {
         finishReason: "stop",
         usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 },
         content: [{ type: "text", text: JSON.stringify(SINGLE_FUND_STRUCTURE) }],
+        warnings: [],
       },
     }) as never
   );
@@ -1913,7 +1914,7 @@ Expected: FAIL — `lib/agent.ts` does not exist.
 
 ```typescript
 import { generateObject } from "ai";
-import { z } from "zod";
+import { z } from "zod3";
 import { getModel } from "./llm";
 import { fetchSchemeNav } from "./mfapi";
 import { computeTrailingReturns } from "./metrics";
