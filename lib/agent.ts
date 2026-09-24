@@ -1,0 +1,130 @@
+import { generateObject } from "ai";
+import { z } from "zod3";
+import { getModel } from "./llm";
+import { fetchSchemeNav } from "./mfapi";
+import { computeTrailingReturns } from "./metrics";
+import {
+  generateSingleFundInsight,
+  generateComparisonInsight,
+  generateRankingInsight,
+} from "./insights";
+import { buildCacheKey, getCachedSchema, setCachedSchema } from "./cache";
+import { A2uiMessageSchema, CATALOG_ID, type A2uiMessage } from "./catalog";
+import type { ResolvedIntent } from "./intent";
+
+const StructureResponseSchema = z.object({
+  messages: z.array(A2uiMessageSchema).min(1),
+});
+
+const STRUCTURE_PROMPTS: Record<ResolvedIntent["type"], string> = {
+  single_fund: `Produce A2UI v0.9 "messages" for a page with THREE surfaces, in this order:
+1. surfaceId "stat": one createSurface + one updateComponents whose single root component is "StatCard", with label as a short literal string (e.g. "1-Year Return") and value bound to {"path":"/statValue"} and trend bound to {"path":"/statTrend"}.
+2. surfaceId "chart": one createSurface + one updateComponents whose single root component is "NavChart", with title as a literal string and points bound to {"path":"/navPoints"}.
+3. surfaceId "insight": one createSurface + one updateComponents whose single root component is "InsightCallout", with text bound to {"path":"/insightText"}.
+Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
+  compare_funds: `Produce A2UI v0.9 "messages" for a page with TWO surfaces, in this order:
+1. surfaceId "table": one createSurface + one updateComponents whose single root component is "ComparisonTable", with title as a literal string, columns as a literal array of short header strings (e.g. ["Fund","1Y Return"]), and rows bound to {"path":"/rows"}.
+2. surfaceId "insight": one createSurface + one updateComponents whose single root component is "InsightCallout", with text bound to {"path":"/insightText"}.
+Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
+  category_ranking: `Produce A2UI v0.9 "messages" for a page with TWO surfaces, in this order:
+1. surfaceId "list": one createSurface + one updateComponents whose single root component is "RankedList", with title as a literal string and items bound to {"path":"/items"}.
+2. surfaceId "insight": one createSurface + one updateComponents whose single root component is "InsightCallout", with text bound to {"path":"/insightText"}.
+Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
+};
+
+async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiMessage[]> {
+  const cacheKey = buildCacheKey(intentType);
+  const cached = getCachedSchema<A2uiMessage[]>(cacheKey);
+  if (cached) return cached;
+
+  const { object } = await generateObject({
+    model: getModel(),
+    schema: StructureResponseSchema,
+    prompt: STRUCTURE_PROMPTS[intentType],
+  });
+  setCachedSchema(cacheKey, object.messages);
+  return object.messages;
+}
+
+function surfaceIdsInOrder(messages: A2uiMessage[]): string[] {
+  return messages
+    .filter((m): m is Extract<A2uiMessage, { createSurface: unknown }> => "createSurface" in m)
+    .map((m) => m.createSurface.surfaceId);
+}
+
+async function buildSingleFundData(schemeCodes: number[]) {
+  const schemeCode = schemeCodes[0];
+  const nav = await fetchSchemeNav(schemeCode);
+  const returns = computeTrailingReturns(nav.data);
+  const trend = returns["1Y"] === null ? "flat" : returns["1Y"] >= 0 ? "up" : "down";
+  const statValue = returns["1Y"] === null ? "N/A" : `${returns["1Y"] >= 0 ? "+" : ""}${returns["1Y"].toFixed(1)}%`;
+  return {
+    stat: { statValue, statTrend: trend },
+    chart: { navPoints: [...nav.data].reverse() },
+    insight: { insightText: generateSingleFundInsight(nav.meta.scheme_name, returns) },
+  };
+}
+
+async function buildCompareFundsData(schemeCodes: number[]) {
+  const navs = await Promise.all(schemeCodes.map((code) => fetchSchemeNav(code)));
+  const rows = navs.map((nav) => {
+    const returns = computeTrailingReturns(nav.data);
+    return [
+      nav.meta.scheme_name,
+      returns["1Y"] === null ? "N/A" : `${returns["1Y"].toFixed(1)}%`,
+      returns["3Y"] === null ? "N/A" : `${returns["3Y"].toFixed(1)}%`,
+    ];
+  });
+  const insight = generateComparisonInsight(
+    navs.map((nav) => ({
+      name: nav.meta.scheme_name,
+      oneYearReturn: computeTrailingReturns(nav.data)["1Y"],
+    }))
+  );
+  return {
+    table: { rows },
+    insight: { insightText: insight },
+  };
+}
+
+async function buildCategoryRankingData(schemeCodes: number[], category: string | undefined) {
+  const navs = await Promise.all(schemeCodes.map((code) => fetchSchemeNav(code)));
+  const ranked = navs
+    .map((nav) => ({
+      name: nav.meta.scheme_name,
+      oneYearReturn: computeTrailingReturns(nav.data)["1Y"],
+    }))
+    .sort((a, b) => (b.oneYearReturn ?? -Infinity) - (a.oneYearReturn ?? -Infinity));
+  const items = ranked.map((r) => ({
+    name: r.name,
+    value: r.oneYearReturn === null ? "N/A" : `${r.oneYearReturn.toFixed(1)}%`,
+  }));
+  return {
+    list: { items },
+    insight: { insightText: generateRankingInsight(category ?? "the selected", ranked) },
+  };
+}
+
+export async function buildA2uiResponse(intent: ResolvedIntent): Promise<A2uiMessage[]> {
+  const structure = await fetchStructure(intent.type);
+  const surfaceIds = surfaceIdsInOrder(structure);
+
+  let dataBySurface: Record<string, Record<string, unknown>>;
+  if (intent.type === "single_fund") {
+    const data = await buildSingleFundData(intent.schemeCodes);
+    dataBySurface = { [surfaceIds[0]]: data.stat, [surfaceIds[1]]: data.chart, [surfaceIds[2]]: data.insight };
+  } else if (intent.type === "compare_funds") {
+    const data = await buildCompareFundsData(intent.schemeCodes);
+    dataBySurface = { [surfaceIds[0]]: data.table, [surfaceIds[1]]: data.insight };
+  } else {
+    const data = await buildCategoryRankingData(intent.schemeCodes, intent.category);
+    dataBySurface = { [surfaceIds[0]]: data.list, [surfaceIds[1]]: data.insight };
+  }
+
+  const dataMessages: A2uiMessage[] = Object.entries(dataBySurface).map(([surfaceId, value]) => ({
+    version: "v0.9" as const,
+    updateDataModel: { surfaceId, value },
+  }));
+
+  return [...structure, ...dataMessages];
+}
