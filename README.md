@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# A2UI Mutual Fund Dashboard
 
-## Getting Started
+A Next.js demo applying the A2UI (Agent-to-UI) declarative generative UI
+pattern to natural-language analysis of Indian mutual funds.
 
-First, run the development server:
+## Architecture
+
+See [docs/adr/0001-mutual-fund-a2ui-dashboard-architecture.md](docs/adr/0001-mutual-fund-a2ui-dashboard-architecture.md)
+for the full architecture decision record, including why the app skips the
+AG-UI/CopilotKit runtime, why it uses fixed-schema-per-intent caching, and
+why the LLM never sees or emits literal financial figures.
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local  # then fill in ANTHROPIC_API_KEY or OPENAI_API_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+If your shell already exports `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL` for a
+local LLM workflow (e.g. Ollama), unset them before running `npm run dev`,
+or they will silently redirect this app's API calls to your local server
+instead of the real Anthropic/OpenAI API. `.env.local` cannot override an
+already-exported shell variable of the same name.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+```
 
-## Learn More
+## Data source
 
-To learn more about Next.js, take a look at the following resources:
+[mfapi.in](https://www.mfapi.in/) — free, unauthenticated, unrated-limited
+NAV history and scheme metadata for Indian mutual funds. No holdings,
+expense ratio, or AUM data is available, so "analysis" here means
+NAV-history-derived metrics (trailing returns, volatility, drawdown), not
+portfolio composition.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Real scheme names always carry both a plan qualifier (Direct/Regular Plan)
+and an option qualifier (Growth/IDCW/Dividend Option) — e.g. "HDFC Flexi
+Cap Fund - Direct Plan - Growth Option". Naming just the fund in a query
+resolves to the Direct + Growth variant by default, since that's the
+combination "how has this fund done" conventionally refers to.
