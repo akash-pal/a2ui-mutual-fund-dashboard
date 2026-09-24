@@ -70,12 +70,15 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects a component missing an id", () => {
+  it("rejects a non-root component missing an id", () => {
     const result = A2uiMessageSchema.safeParse({
       version: "v0.9",
       updateComponents: {
         surfaceId: "stat",
-        components: [{ component: "StatCard", label: "1-Year Return", value: { path: "/statValue" } }],
+        components: [
+          { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+          { component: "InsightCallout", text: { path: "/insightText" } },
+        ],
       },
     });
     expect(result.success).toBe(false);
