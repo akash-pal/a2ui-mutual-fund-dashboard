@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 15 (`/api/agent` route handler) is starting now.
+- Task 16 (client-side A2UI surface renderer) is starting now.
 
 ## Up next (in order)
 
-15. `/api/agent` route handler
 16. Client-side A2UI surface renderer
 17. Query input + main page wiring
 18. Manual smoke test + README
@@ -71,3 +70,11 @@ full implementation plan this is executing.
     would get cached permanently); fixed by matching surfaces by name instead of position, with a
     validation check before anything is cached. Test coverage extended to all three query types.
     8/8 tests passing, full suite 66/66.
+15. **`/api/agent` route handler** (`app/api/agent/route.ts`) — the HTTP entry point that ties the
+    query, intent resolution, and orchestration together. This surfaced a real, critical bug:
+    `npm run build` failed for this route because the catalog's UI components and their data
+    schemas were defined together in the same files, and importing the schemas (needed by
+    server-only code) pulled in React component code that isn't allowed to run in that context.
+    Fixed by splitting each catalog component's schema out into its own file, separate from its
+    UI code — this required touching the five already-completed catalog components, but keeps
+    everything else about them unchanged. Full suite 68/68, production build verified working.
