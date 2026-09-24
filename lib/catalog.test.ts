@@ -99,6 +99,43 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  // The component prop schemas (NavChart/ComparisonTable/RankedList/InsightCallout)
+  // must accept a literal value at the rendering layer -- the A2UI generic binder
+  // only resolves a {path} reference when the field's schema is a union
+  // (DynamicValue/DynamicString), never for a bare DataBinding object. So the
+  // "always path-bound, never a literal" rule for LLM-generated structures has to
+  // be enforced here instead, on AnyCatalogComponentSchema -- these tests guard
+  // against that enforcement being silently lost (e.g. if a future edit forgets
+  // the override and just spreads the permissive component schema through).
+  it("rejects a literal points array for NavChart", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "chart",
+        components: [
+          {
+            component: "NavChart",
+            id: "root",
+            title: "NAV Trend",
+            points: [{ date: "01-01-2026", nav: 100 }],
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects literal text for InsightCallout", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "insight",
+        components: [{ component: "InsightCallout", id: "root", text: "This fund did well." }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("MessageProcessor integration", () => {

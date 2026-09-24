@@ -1,4 +1,5 @@
 import { z } from "zod3";
+import { CommonSchemas } from "@a2ui/web_core/v0_9";
 import { StatCardApi, StatCardPropsSchema } from "@/components/catalog/StatCard.schema";
 import { NavChartApi, NavChartPropsSchema } from "@/components/catalog/NavChart.schema";
 import {
@@ -23,19 +24,38 @@ export const CATALOG_ID = "a2ui-mutual-fund-dashboard.local:v1";
 
 const envelope = { id: z.string(), weight: z.number().optional() };
 
+// The component schemas' own `points`/`rows`/`items`/`text` fields use the permissive
+// DynamicValue/DynamicString union at the *rendering* layer (required so the A2UI
+// generic binder actually resolves the {path} reference -- see NavChart.schema.ts).
+// This LLM-output-facing schema re-narrows those same fields to strict DataBinding,
+// so the app's "always path-bound, never a literal" promise is still validated here,
+// where it matters: at the boundary between the LLM's generated structure and the
+// rest of the app, before anything is cached or rendered.
 export const AnyCatalogComponentSchema = z.discriminatedUnion("component", [
   z.object({ component: z.literal(StatCardApi.name), ...envelope, ...StatCardPropsSchema.shape }),
-  z.object({ component: z.literal(NavChartApi.name), ...envelope, ...NavChartPropsSchema.shape }),
+  z.object({
+    component: z.literal(NavChartApi.name),
+    ...envelope,
+    ...NavChartPropsSchema.shape,
+    points: CommonSchemas.DataBinding,
+  }),
   z.object({
     component: z.literal(ComparisonTableApi.name),
     ...envelope,
     ...ComparisonTablePropsSchema.shape,
+    rows: CommonSchemas.DataBinding,
   }),
-  z.object({ component: z.literal(RankedListApi.name), ...envelope, ...RankedListPropsSchema.shape }),
+  z.object({
+    component: z.literal(RankedListApi.name),
+    ...envelope,
+    ...RankedListPropsSchema.shape,
+    items: CommonSchemas.DataBinding,
+  }),
   z.object({
     component: z.literal(InsightCalloutApi.name),
     ...envelope,
     ...InsightCalloutPropsSchema.shape,
+    text: CommonSchemas.DataBinding,
   }),
 ]);
 

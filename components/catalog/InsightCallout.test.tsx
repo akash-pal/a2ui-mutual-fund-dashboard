@@ -7,8 +7,13 @@ describe("InsightCalloutPropsSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects literal text (insight copy is always path-bound and computed fresh)", () => {
+  it("also accepts literal text at the component-schema level", () => {
+    // See the comment in NavChart.test.tsx: DynamicString is a union type (unlike
+    // a bare DataBinding), and it's what lets the generic binder resolve the
+    // {path} reference at all. The "always path-bound, never LLM-authored" rule
+    // for LLM-generated structures is enforced on AnyCatalogComponentSchema in
+    // lib/catalog-messages.ts.
     const result = InsightCalloutPropsSchema.safeParse({ text: "This fund did well." });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });
