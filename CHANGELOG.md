@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 10 (`RankedList` catalog component) is starting now.
+- Task 11 (`InsightCallout` catalog component) is starting now.
 
 ## Up next (in order)
 
-10. `RankedList` catalog component
 11. `InsightCallout` catalog component
 12. Wire the five components into the real A2UI catalog + message schema
 13. Provider-agnostic model selection (Anthropic/OpenAI via env var)
@@ -57,3 +56,5 @@ full implementation plan this is executing.
    list components. 2/2 tests passing, reviewed clean.
 9. **`ComparisonTable` catalog component** (`components/catalog/ComparisonTable.tsx`) — a shadcn
    table for comparing multiple funds side by side. 3/3 tests passing, reviewed clean.
+10. **`RankedList` catalog component** (`components/catalog/RankedList.tsx`) — an ordered list for
+    category-ranking results. 2/2 tests passing, reviewed clean.
