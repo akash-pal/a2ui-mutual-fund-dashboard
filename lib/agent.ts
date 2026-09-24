@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateObject, type FlexibleSchema } from "ai";
 import { z } from "zod3";
 import { getModel } from "./llm";
 import { fetchSchemeNav } from "./mfapi";
@@ -15,6 +15,10 @@ import type { ResolvedIntent } from "./intent";
 const StructureResponseSchema = z.object({
   messages: z.array(A2uiMessageSchema).min(1),
 });
+
+// Named separately (see the `generateObject` call below) so the schema's static type can be
+// pinned to this instead of letting TypeScript re-derive it from the zod3 schema each time.
+type StructureResponse = { messages: A2uiMessage[] };
 
 const STRUCTURE_PROMPTS: Record<ResolvedIntent["type"], string> = {
   single_fund: `Produce A2UI v0.9 "messages" for a page with THREE surfaces, in this order:
@@ -39,7 +43,20 @@ async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiM
 
   const { object } = await generateObject({
     model: getModel(),
-    schema: StructureResponseSchema,
+    // `@ai-sdk/provider-utils`'s FlexibleSchema/InferSchema conditional types check the schema
+    // against ITS OWN bundled `zod/v3` compat types (see `import * as z3 from 'zod/v3'` in
+    // node_modules/@ai-sdk/provider-utils/dist/index.d.ts), not against this project's separately
+    // aliased `zod3` package (npm:zod@3.25.76 under lib/catalog.ts's A2uiMessageSchema). The two
+    // are structurally near-identical but nominally distinct deeply-recursive class hierarchies,
+    // and TypeScript's structural check between them exceeds its instantiation-depth limit
+    // ("Type instantiation is excessively deep and possibly infinite") even for a trivial zod3
+    // schema (verified with a one-field z.object() in isolation). At runtime this is a non-issue:
+    // zod 3.25.76 implements the Standard Schema `~standard` interface, which `generateObject`
+    // detects and validates against correctly regardless of which physical zod package built the
+    // schema (confirmed by this file's passing tests). This cast only changes what TypeScript
+    // believes the static type is; the real zod3 object and its `~standard` validator are
+    // untouched, so runtime schema validation is unaffected.
+    schema: StructureResponseSchema as unknown as FlexibleSchema<StructureResponse>,
     prompt: STRUCTURE_PROMPTS[intentType],
   });
   setCachedSchema(cacheKey, object.messages);

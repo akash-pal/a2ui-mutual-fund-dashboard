@@ -79,8 +79,13 @@ beforeEach(() => {
   vi.mocked(getModel).mockReturnValue(
     new MockLanguageModelV4({
       doGenerate: {
-        finishReason: "stop",
-        usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 },
+        // The installed @ai-sdk/provider's LanguageModelV4GenerateResult shapes finishReason and
+        // usage as nested objects (not flat primitives) — see node_modules/@ai-sdk/provider/dist/index.d.ts.
+        finishReason: { unified: "stop" as const, raw: "stop" },
+        usage: {
+          inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+          outputTokens: { total: 10, text: 10, reasoning: undefined },
+        },
         content: [{ type: "text", text: JSON.stringify(SINGLE_FUND_STRUCTURE) }],
         warnings: [],
       },
