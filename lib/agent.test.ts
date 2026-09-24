@@ -48,6 +48,60 @@ const SINGLE_FUND_STRUCTURE = {
   ],
 };
 
+// Surfaces listed in the OPPOSITE order from what their prompt requests, deliberately — this is
+// the regression fixture for the name-based (not positional) surface-to-data mapping fix.
+const COMPARE_FUNDS_STRUCTURE = {
+  messages: [
+    { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "insight",
+        components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+      },
+    },
+    { version: "v0.9", createSurface: { surfaceId: "table", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "table",
+        components: [
+          {
+            component: "ComparisonTable",
+            id: "root",
+            title: "Fund Comparison",
+            columns: ["Fund", "1Y Return", "3Y Return"],
+            rows: { path: "/rows" },
+          },
+        ],
+      },
+    },
+  ],
+};
+
+const CATEGORY_RANKING_STRUCTURE = {
+  messages: [
+    { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "insight",
+        components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+      },
+    },
+    { version: "v0.9", createSurface: { surfaceId: "list", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "list",
+        components: [
+          { component: "RankedList", id: "root", title: "Top Large Cap Funds", items: { path: "/items" } },
+        ],
+      },
+    },
+  ],
+};
+
 function formatDate(d: Date): string {
   return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
 }
@@ -133,5 +187,97 @@ describe("buildA2uiResponse", () => {
       updateDataModel: { value: Record<string, unknown> };
     };
     expect(dataMessage.updateDataModel.value.statValue).toBe("+18.4%");
+  });
+
+  it("assigns compare_funds data to the correct surfaces regardless of the LLM's message order", async () => {
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [{ type: "text", text: JSON.stringify(COMPARE_FUNDS_STRUCTURE) }],
+          warnings: [],
+        },
+      }) as never
+    );
+    const messages = await buildA2uiResponse({ type: "compare_funds", schemeCodes: [1, 2] });
+    const dataMessages = messages.filter(
+      (m): m is Extract<typeof m, { updateDataModel: unknown }> => "updateDataModel" in m
+    );
+    const tableData = dataMessages.find((m) => m.updateDataModel.surfaceId === "table");
+    const insightData = dataMessages.find((m) => m.updateDataModel.surfaceId === "insight");
+    expect(Array.isArray((tableData?.updateDataModel.value as { rows: unknown }).rows)).toBe(true);
+    expect(typeof (insightData?.updateDataModel.value as { insightText: unknown }).insightText).toBe("string");
+  });
+
+  it("assigns category_ranking data to the correct surfaces regardless of the LLM's message order", async () => {
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [{ type: "text", text: JSON.stringify(CATEGORY_RANKING_STRUCTURE) }],
+          warnings: [],
+        },
+      }) as never
+    );
+    const messages = await buildA2uiResponse({
+      type: "category_ranking",
+      schemeCodes: [1, 2],
+      category: "large cap",
+    });
+    const dataMessages = messages.filter(
+      (m): m is Extract<typeof m, { updateDataModel: unknown }> => "updateDataModel" in m
+    );
+    const listData = dataMessages.find((m) => m.updateDataModel.surfaceId === "list");
+    const insightData = dataMessages.find((m) => m.updateDataModel.surfaceId === "insight");
+    expect(Array.isArray((listData?.updateDataModel.value as { items: unknown }).items)).toBe(true);
+    expect(typeof (insightData?.updateDataModel.value as { insightText: unknown }).insightText).toBe("string");
+  });
+
+  it("throws a clear error when the LLM-generated structure is missing an expected surface", async () => {
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                messages: [
+                  {
+                    version: "v0.9",
+                    createSurface: { surfaceId: "stat", catalogId: "a2ui-mutual-fund-dashboard.local:v1" },
+                  },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "stat",
+                      components: [
+                        { component: "StatCard", id: "root", label: "x", value: { path: "/statValue" } },
+                      ],
+                    },
+                  },
+                ],
+              }),
+            },
+          ],
+          warnings: [],
+        },
+      }) as never
+    );
+    await expect(buildA2uiResponse({ type: "single_fund", schemeCodes: [1] })).rejects.toThrow(
+      /missing expected surface/
+    );
   });
 });

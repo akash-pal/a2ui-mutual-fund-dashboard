@@ -36,6 +36,12 @@ Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for eve
 Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
 };
 
+const EXPECTED_SURFACE_IDS: Record<ResolvedIntent["type"], string[]> = {
+  single_fund: ["stat", "chart", "insight"],
+  compare_funds: ["table", "insight"],
+  category_ranking: ["list", "insight"],
+};
+
 async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiMessage[]> {
   const cacheKey = buildCacheKey(intentType);
   const cached = getCachedSchema<A2uiMessage[]>(cacheKey);
@@ -59,6 +65,15 @@ async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiM
     schema: StructureResponseSchema as unknown as FlexibleSchema<StructureResponse>,
     prompt: STRUCTURE_PROMPTS[intentType],
   });
+
+  const generatedSurfaceIds = new Set(surfaceIdsInOrder(object.messages));
+  const missing = EXPECTED_SURFACE_IDS[intentType].filter((id) => !generatedSurfaceIds.has(id));
+  if (missing.length > 0) {
+    throw new Error(
+      `LLM-generated structure for intent "${intentType}" is missing expected surface(s): ${missing.join(", ")}`
+    );
+  }
+
   setCachedSchema(cacheKey, object.messages);
   return object.messages;
 }
@@ -124,18 +139,17 @@ async function buildCategoryRankingData(schemeCodes: number[], category: string 
 
 export async function buildA2uiResponse(intent: ResolvedIntent): Promise<A2uiMessage[]> {
   const structure = await fetchStructure(intent.type);
-  const surfaceIds = surfaceIdsInOrder(structure);
 
   let dataBySurface: Record<string, Record<string, unknown>>;
   if (intent.type === "single_fund") {
     const data = await buildSingleFundData(intent.schemeCodes);
-    dataBySurface = { [surfaceIds[0]]: data.stat, [surfaceIds[1]]: data.chart, [surfaceIds[2]]: data.insight };
+    dataBySurface = { stat: data.stat, chart: data.chart, insight: data.insight };
   } else if (intent.type === "compare_funds") {
     const data = await buildCompareFundsData(intent.schemeCodes);
-    dataBySurface = { [surfaceIds[0]]: data.table, [surfaceIds[1]]: data.insight };
+    dataBySurface = { table: data.table, insight: data.insight };
   } else {
     const data = await buildCategoryRankingData(intent.schemeCodes, intent.category);
-    dataBySurface = { [surfaceIds[0]]: data.list, [surfaceIds[1]]: data.insight };
+    dataBySurface = { list: data.list, insight: data.insight };
   }
 
   const dataMessages: A2uiMessage[] = Object.entries(dataBySurface).map(([surfaceId, value]) => ({
