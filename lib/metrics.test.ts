@@ -40,6 +40,35 @@ describe("computeTrailingReturns", () => {
     expect(result["1M"]!).toBeGreaterThan(0);
   });
 
+  it("returns null (not a false 0%) for periods that don't reach past a defunct fund's last NAV update", () => {
+    // A fund whose data stopped updating in Dec 2022, queried as of Sep 2026 (~4
+    // years stale). navOnOrBefore's "most recent point on or before target" search
+    // returns this SAME last point for every lookback target that falls after Dec
+    // 2022 -- without the past.date === latest.date guard, that reads as latest
+    // minus itself, a real-looking but bogus 0% return, instead of "no distinct
+    // historical reference in this window."
+    const staleSeries: NavPoint[] = [];
+    const start = new Date("2020-01-01");
+    let nav = 100;
+    for (let i = 0; i < 1096; i++) {
+      // 2020-01-01 .. 2022-12-31
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const date = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+      staleSeries.push({ date, nav: Number(nav.toFixed(4)) });
+      nav = nav * 1.0002;
+    }
+    const result = computeTrailingReturns(staleSeries, new Date("2026-09-23"));
+    expect(result["1M"]).toBeNull();
+    expect(result["3M"]).toBeNull();
+    expect(result["1Y"]).toBeNull();
+    expect(result["3Y"]).toBeNull();
+    // 5Y reaches back to Sep 2021, which is genuinely within the fund's real
+    // (2020-2022) history -- a real, non-zero return should still compute.
+    expect(result["5Y"]).not.toBeNull();
+    expect(result["5Y"]!).toBeGreaterThan(0);
+  });
+
   it("correctly handles month-end dates (e.g., Mar 31 minus 1 month lands on Feb 28)", () => {
     // asOf = Mar 31, 2026. Correct target (fixed): Feb 28, 2026.
     // Buggy target (old raw setMonth): Mar 31 -> setMonth(Feb) on a 31-day value

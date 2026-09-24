@@ -49,7 +49,11 @@ function navOnOrBefore(sorted: NavPoint[], target: Date): NavPoint | null {
 function periodReturn(sorted: NavPoint[], latest: NavPoint, monthsBack: number, asOf: Date): number | null {
   const target = subtractCalendar(asOf, { months: monthsBack });
   const past = navOnOrBefore(sorted, target);
-  if (!past) return null;
+  // If the fund's NAV history is stale (its most recent point predates the
+  // lookback target), `navOnOrBefore` returns that same latest point for both
+  // `latest` and `past` -- without this check that reads as a real 0% return
+  // instead of "no distinct historical reference in this window."
+  if (!past || past.date === latest.date) return null;
   return ((latest.nav - past.nav) / past.nav) * 100;
 }
 
@@ -74,7 +78,7 @@ export function computeCAGR(nav: NavPoint[], years: number, asOf: Date = new Dat
   if (!latest) return null;
   const target = subtractCalendar(asOf, { years });
   const past = navOnOrBefore(sorted, target);
-  if (!past || past.nav <= 0) return null;
+  if (!past || past.date === latest.date || past.nav <= 0) return null;
   return (Math.pow(latest.nav / past.nav, 1 / years) - 1) * 100;
 }
 

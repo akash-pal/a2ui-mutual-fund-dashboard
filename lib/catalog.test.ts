@@ -126,6 +126,43 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects a literal rows array for ComparisonTable", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "table",
+        components: [
+          {
+            component: "ComparisonTable",
+            id: "root",
+            title: "Fund Comparison",
+            columns: ["Fund", "1Y Return"],
+            rows: [["Fund A", "12%"]],
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a literal items array for RankedList", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "list",
+        components: [
+          {
+            component: "RankedList",
+            id: "root",
+            title: "Top Large Cap Funds",
+            items: [{ name: "Fund A", value: "12%" }],
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects literal text for InsightCallout", () => {
     const result = A2uiMessageSchema.safeParse({
       version: "v0.9",
