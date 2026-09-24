@@ -7,8 +7,32 @@ full implementation plan this is executing.
 
 ## In progress
 
-All 18 planned tasks are complete. A final whole-branch review is in progress before
-this is ready to merge.
+All 18 planned tasks are complete. The final whole-branch review found the app was
+broken end to end (see below) — that's fixed. A few more real issues from that same
+review are still being worked through before this is ready to merge.
+
+## Final review findings
+
+The final review (a broader pass across everything, looking for problems that only
+show up when pieces are combined) found the most serious bug in the whole project:
+**every single query crashed or silently rendered empty**, regardless of which LLM
+provider was used. Four of the five UI components were built with the wrong kind of
+data-binding declaration — one that the underlying rendering library silently never
+resolves — so they received a raw internal reference instead of the actual value.
+`InsightCallout` crashed outright; `NavChart`, `ComparisonTable`, and `RankedList`
+quietly showed nothing. No test caught this because every earlier test checked the
+data shape in isolation, never a real render through the full pipeline. Fixed, with
+new tests that render through the real pipeline for all four components — each
+checked to genuinely fail without the fix before being accepted.
+
+Also fixed: mutual funds that haven't been updated in a while were showing a
+misleading "0% return" instead of "not available," because the calculation was
+comparing the same stale data point to itself.
+
+Still being worked through: a few more findings from that same review (a client-side
+error boundary so one bad response can't take down the whole page, a prompt wording
+mismatch that could misalign comparison-table columns, and the "best funds" ranking
+not holding up well against the full real-world fund list).
 
 ## Done
 
