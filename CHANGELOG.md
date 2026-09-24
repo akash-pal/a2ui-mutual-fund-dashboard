@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 11 (`InsightCallout` catalog component) is starting now.
+- Task 12 (wire the five components into the real A2UI catalog + message schema) is starting now.
 
 ## Up next (in order)
 
-11. `InsightCallout` catalog component
 12. Wire the five components into the real A2UI catalog + message schema
 13. Provider-agnostic model selection (Anthropic/OpenAI via env var)
 14. Agent orchestration (cache-first structure, always-fresh data)
@@ -58,3 +57,6 @@ full implementation plan this is executing.
    table for comparing multiple funds side by side. 3/3 tests passing, reviewed clean.
 10. **`RankedList` catalog component** (`components/catalog/RankedList.tsx`) — an ordered list for
     category-ranking results. 2/2 tests passing, reviewed clean.
+11. **`InsightCallout` catalog component** (`components/catalog/InsightCallout.tsx`) — a styled
+    callout for deterministic insight commentary. This completes all five catalog components.
+    2/2 tests passing, reviewed clean.
