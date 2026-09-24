@@ -58,6 +58,46 @@ describe("A2uiMessageSchema", () => {
   });
 });
 
+describe("A2uiMessageSchema — additional protocol conformance", () => {
+  it("rejects a component missing a required prop (StatCard without value)", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "stat",
+        components: [{ component: "StatCard", id: "root", label: "1-Year Return" }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a component missing an id", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "stat",
+        components: [{ component: "StatCard", label: "1-Year Return", value: { path: "/statValue" } }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts an updateDataModel message with a path and a scalar value", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateDataModel: { surfaceId: "stat", path: "/statValue", value: "+18.4%" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an updateDataModel message with value omitted (deletes the key at path)", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateDataModel: { surfaceId: "stat", path: "/statValue" },
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
 describe("MessageProcessor integration", () => {
   it("creates a surface from createSurface + updateComponents messages", () => {
     const processor = new MessageProcessor([appCatalog]);

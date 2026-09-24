@@ -22,7 +22,7 @@ export const appCatalog = new Catalog(
   []
 );
 
-const envelope = { id: z.string().optional(), weight: z.number().optional() };
+const envelope = { id: z.string(), weight: z.number().optional() };
 
 const AnyCatalogComponentSchema = z.discriminatedUnion("component", [
   z.object({ component: z.literal(StatCardApi.name), ...envelope, ...StatCardPropsSchema.shape }),
@@ -58,7 +58,7 @@ const UpdateComponentsMessageSchema = z.object({
       components: z.array(AnyCatalogComponentSchema).min(1),
     })
     .refine((val) => val.components.some((c) => c.id === "root"), {
-      message: "updateComponents.components must include exactly one component with id 'root'",
+      message: "updateComponents.components must include at least one component with id 'root'",
     }),
 });
 
@@ -67,7 +67,7 @@ const UpdateDataModelMessageSchema = z.object({
   updateDataModel: z.object({
     surfaceId: z.string(),
     path: z.string().optional(),
-    value: z.record(z.string(), z.unknown()),
+    value: z.unknown().optional(),
   }),
 });
 
