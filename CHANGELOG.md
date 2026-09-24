@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 17 (query input + main page wiring) is starting now.
+- Task 18 (manual smoke test + README) is starting now.
 
 ## Up next (in order)
 
-17. Query input + main page wiring
 18. Manual smoke test + README
 
 ## Done
@@ -83,3 +82,6 @@ full implementation plan this is executing.
     reused one processor for the whole session, but every new question reuses the same surface
     names, so asking a second question would have thrown immediately. Fixed by giving each new
     question's answer its own processor. 3/3 tests passing, full suite unaffected.
+17. **Query input + main page wiring** (`components/QueryInput.tsx`, `app/page.tsx`) — the app is
+    now usable end to end: type a question, get a dashboard back. This is the last functional
+    task; everything from here is testing and documentation. Full suite 74/74, reviewed clean.
