@@ -9,7 +9,8 @@ full implementation plan this is executing.
 
 All 18 planned tasks are complete. The final whole-branch review found the app was
 broken end to end (see below) — that's fixed, along with every other significant
-finding from that review. What's left is going through the smaller, lower-impact
+finding from that review, including the last one (weak validation of the AI's
+generated page structure). What's left is a handful of smaller, lower-impact
 findings from the same review before this is ready to merge.
 
 ## Final review findings
@@ -59,6 +60,15 @@ Also fixed:
   Fixed by capping how many candidate funds are looked up per query, tolerating one
   or two of them failing to load without failing the whole request, showing only the
   top 10 results, and fixing the de-duplication gap.
+
+- The app caches the AI's generated page layout per question type, to avoid asking
+  it to redesign the same page on every request. The check for whether a generated
+  layout was good enough to cache was too weak — it only confirmed the right
+  sections existed on the page, not that they held the right kind of content or
+  were wired up to the right data. A bad layout could have passed that check,
+  gotten cached, and then quietly shown the wrong thing (or nothing) on every
+  question of that type until the app restarted. Fixed by checking the exact
+  content and data wiring the app actually needs, not just that a section exists.
 
 Still being worked through: a handful of smaller, lower-impact findings from the
 same review (see the plan's task list for details) before this is ready to merge.
