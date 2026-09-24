@@ -7,11 +7,8 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 18 (manual smoke test + README) is starting now.
-
-## Up next (in order)
-
-18. Manual smoke test + README
+All 18 planned tasks are complete. A final whole-branch review is in progress before
+this is ready to merge.
 
 ## Done
 
@@ -85,3 +82,13 @@ full implementation plan this is executing.
 17. **Query input + main page wiring** (`components/QueryInput.tsx`, `app/page.tsx`) — the app is
     now usable end to end: type a question, get a dashboard back. This is the last functional
     task; everything from here is testing and documentation. Full suite 74/74, reviewed clean.
+18. **Live smoke test + README** — ran the app for real, with a real Anthropic API key, against
+    real fund data. This caught the most impactful bugs found in the whole project, because
+    they only show up with real data: real fund names always include a "Growth" or "IDCW" tag
+    that the matching logic didn't know to ignore, so an ordinary question about a real fund
+    matched nothing and crashed the app; a "best funds" list could show the same fund up to 4
+    times; and a related edge case (a fund whose own name happens to contain the word "Growth")
+    was caught and fixed during review before being called done. All fixed and verified against
+    live data, not just test fixtures. Full suite 78/78. One thing intentionally left open: a
+    render error seen only while using a local stand-in model (after the API key ran out of
+    credit mid-test) that needs re-checking against the real API once credit is available.
