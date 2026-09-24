@@ -70,6 +70,15 @@ Also fixed:
   question of that type until the app restarted. Fixed by checking the exact
   content and data wiring the app actually needs, not just that a section exists.
 
+- Live-tested against the real OpenAI API for the first time (the app supports
+  switching between Anthropic and OpenAI, but OpenAI had never actually been tried
+  end to end until now) and found it was completely broken: OpenAI enforces a
+  stricter rule than Anthropic about what a valid response format looks like, and
+  our schema didn't follow it, so every OpenAI request failed outright. Fixed by
+  tightening the schema to meet that stricter rule (and, in doing so, also fixing a
+  small existing prompt/schema mismatch that was flagged but not yet acted on).
+  Confirmed fixed against the real OpenAI API, not just automated tests.
+
 Still being worked through: a handful of smaller, lower-impact findings from the
 same review (see the plan's task list for details) before this is ready to merge.
 
