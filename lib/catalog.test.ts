@@ -195,6 +195,78 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  // The rendering-layer DynamicString/DynamicValue unions also accept a FunctionCall
+  // ({call, args, returnType} -- see node_modules/@a2ui/web_core/src/v0_9/schema/
+  // common-types.js) alongside a literal and a DataBinding. Nothing this app prompts
+  // for ever needs one (every field is asked for as a literal or a specific path,
+  // never "call a function"), so the LLM-facing schema narrows every field to
+  // exactly one of those two shapes -- these tests guard against a FunctionCall
+  // slipping through either kind of field.
+  it("rejects a FunctionCall value for a literal-only field (NavChart's title)", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "chart",
+        components: [
+          {
+            component: "NavChart",
+            id: "root",
+            title: { call: "getTitle", args: {}, returnType: "string" },
+            points: { path: "/navPoints" },
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a FunctionCall value for a path-bound-only field (StatCard's value)", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "stat",
+        components: [
+          {
+            component: "StatCard",
+            id: "root",
+            label: "1-Year Return",
+            value: { call: "getValue", args: {}, returnType: "string" },
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a path-bound title for NavChart (every prompt asks for title as a literal string)", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "chart",
+        components: [
+          {
+            component: "NavChart",
+            id: "root",
+            title: { path: "/chartTitle" },
+            points: { path: "/navPoints" },
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a literal (non-path) value for StatCard's value field", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "stat",
+        components: [{ component: "StatCard", id: "root", label: "1-Year Return", value: "+18.4%" }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("MessageProcessor integration", () => {

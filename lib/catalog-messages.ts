@@ -24,25 +24,43 @@ export const CATALOG_ID = "a2ui-mutual-fund-dashboard.local:v1";
 
 const envelope = { id: z.string(), weight: z.number().optional() };
 
-// The component schemas' own `points`/`rows`/`items`/`text` fields use the permissive
-// DynamicValue/DynamicString union at the *rendering* layer (required so the A2UI
-// generic binder actually resolves the {path} reference -- see NavChart.schema.ts).
-// This LLM-output-facing schema re-narrows those same fields to strict DataBinding,
-// so the app's "always path-bound, never a literal" promise is still validated here,
-// where it matters: at the boundary between the LLM's generated structure and the
-// rest of the app, before anything is cached or rendered.
+// The component schemas' own dynamic fields use the permissive DynamicValue/
+// DynamicString/DynamicStringList unions at the *rendering* layer (required so the
+// A2UI generic binder actually resolves the {path} reference -- see the comment in
+// NavChart.schema.ts). Those unions also include FunctionCall (see
+// node_modules/@a2ui/web_core/src/v0_9/schema/common-types.js) -- harmless at render
+// time in this app (the catalog registers zero functions, so any FunctionCall the
+// LLM emitted would just fail to resolve and render blank), but nothing this app
+// needs, since every prompt asks for either a literal string or a specific path.
+// This LLM-output-facing schema re-narrows every field to exactly one of those two
+// shapes -- literal-only for the fields the prompts always ask for as literal text,
+// strict DataBinding for the fields the prompts always ask to be path-bound -- so a
+// structure that drifted from the prompt (or a FunctionCall) is rejected here, at
+// the boundary between the LLM's output and the rest of the app, before anything is
+// cached or rendered.
+const literalTitle = z.string();
+
 export const AnyCatalogComponentSchema = z.discriminatedUnion("component", [
-  z.object({ component: z.literal(StatCardApi.name), ...envelope, ...StatCardPropsSchema.shape }),
+  z.object({
+    component: z.literal(StatCardApi.name),
+    ...envelope,
+    ...StatCardPropsSchema.shape,
+    label: literalTitle,
+    value: CommonSchemas.DataBinding,
+    trend: CommonSchemas.DataBinding.optional(),
+  }),
   z.object({
     component: z.literal(NavChartApi.name),
     ...envelope,
     ...NavChartPropsSchema.shape,
+    title: literalTitle,
     points: CommonSchemas.DataBinding,
   }),
   z.object({
     component: z.literal(ComparisonTableApi.name),
     ...envelope,
     ...ComparisonTablePropsSchema.shape,
+    title: literalTitle,
     columns: CommonSchemas.DataBinding,
     rows: CommonSchemas.DataBinding,
   }),
@@ -50,6 +68,7 @@ export const AnyCatalogComponentSchema = z.discriminatedUnion("component", [
     component: z.literal(RankedListApi.name),
     ...envelope,
     ...RankedListPropsSchema.shape,
+    title: literalTitle,
     items: CommonSchemas.DataBinding,
   }),
   z.object({

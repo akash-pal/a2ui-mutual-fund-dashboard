@@ -378,4 +378,116 @@ describe("buildA2uiResponse", () => {
       /missing expected surface/
     );
   });
+
+  it("throws when a surface's root component doesn't match the expected type, even though the surface ID is right", async () => {
+    // Regression for the weaker check this replaced: it only confirmed a surface
+    // with the right ID existed, not that the RIGHT component was in it -- this
+    // structure names the "chart" surface correctly but puts an InsightCallout
+    // (not NavChart) in its root, which would previously have passed validation
+    // and gotten cached, then silently rendered the wrong component forever.
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                messages: [
+                  { version: "v0.9", createSurface: { surfaceId: "stat", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "stat",
+                      components: [{ component: "StatCard", id: "root", label: "x", value: { path: "/statValue" } }],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "chart", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "chart",
+                      components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "insight",
+                      components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+                    },
+                  },
+                ],
+              }),
+            },
+          ],
+          warnings: [],
+        },
+      }) as never
+    );
+    await expect(buildA2uiResponse({ type: "single_fund", schemeCodes: [1] })).rejects.toThrow(
+      /surface "chart" has component "InsightCallout", expected "NavChart"/
+    );
+  });
+
+  it("throws when a required prop is bound to the wrong data-model path", async () => {
+    // Regression: the old check never looked at WHERE a prop was bound, only that
+    // the surface existed with the right component. A structure that bound
+    // ComparisonTable's "rows" to the wrong path would validate, get cached, and
+    // then never populate -- buildA2uiResponse's updateDataModel writes to "/rows",
+    // not whatever the LLM happened to pick.
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                messages: [
+                  { version: "v0.9", createSurface: { surfaceId: "table", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "table",
+                      components: [
+                        {
+                          component: "ComparisonTable",
+                          id: "root",
+                          title: "Fund Comparison",
+                          columns: { path: "/columns" },
+                          rows: { path: "/tableRows" },
+                        },
+                      ],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "insight",
+                      components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+                    },
+                  },
+                ],
+              }),
+            },
+          ],
+          warnings: [],
+        },
+      }) as never
+    );
+    await expect(
+      buildA2uiResponse({ type: "compare_funds", schemeCodes: [1, 2] })
+    ).rejects.toThrow(/surface "table" binds "rows" to "\/tableRows", expected "\/rows"/);
+  });
 });

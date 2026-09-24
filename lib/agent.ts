@@ -41,11 +41,91 @@ Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for eve
 Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
 };
 
-const EXPECTED_SURFACE_IDS: Record<ResolvedIntent["type"], string[]> = {
-  single_fund: ["stat", "chart", "insight"],
-  compare_funds: ["table", "insight"],
-  category_ranking: ["list", "insight"],
+// The exact contract each intent type's data-population code relies on: which
+// component must sit at each surface's root, and which of its props must be bound
+// to which data-model path (matching the `updateDataModel` values buildA2uiResponse
+// sends below). Checking only that a surface with the right ID exists (the original,
+// weaker check) let a structure through that named the right surface but put the
+// wrong component in it, or bound a prop to the wrong path -- either would silently
+// show nothing/the wrong thing at render time instead of failing loudly here, where
+// a bad result can still be rejected before it's cached.
+type SurfaceContract = {
+  component: string;
+  paths: Record<string, string>;
+  optionalPaths?: Record<string, string>;
 };
+const EXPECTED_STRUCTURE: Record<ResolvedIntent["type"], Record<string, SurfaceContract>> = {
+  single_fund: {
+    // trend is an optional prop on StatCard (a soft enhancement, not load-bearing
+    // data) -- an LLM structure that omits it is still valid, but if it IS bound,
+    // it must point at the right place.
+    stat: {
+      component: "StatCard",
+      paths: { value: "/statValue" },
+      optionalPaths: { trend: "/statTrend" },
+    },
+    chart: { component: "NavChart", paths: { points: "/navPoints" } },
+    insight: { component: "InsightCallout", paths: { text: "/insightText" } },
+  },
+  compare_funds: {
+    table: { component: "ComparisonTable", paths: { columns: "/columns", rows: "/rows" } },
+    insight: { component: "InsightCallout", paths: { text: "/insightText" } },
+  },
+  category_ranking: {
+    list: { component: "RankedList", paths: { items: "/items" } },
+    insight: { component: "InsightCallout", paths: { text: "/insightText" } },
+  },
+};
+
+function findRootComponent(
+  messages: A2uiMessage[],
+  surfaceId: string
+): Record<string, unknown> | undefined {
+  for (const m of messages) {
+    if ("updateComponents" in m && m.updateComponents.surfaceId === surfaceId) {
+      return m.updateComponents.components.find((c) => c.id === "root") as
+        | Record<string, unknown>
+        | undefined;
+    }
+  }
+  return undefined;
+}
+
+function validateStructure(intentType: ResolvedIntent["type"], messages: A2uiMessage[]): void {
+  for (const [surfaceId, contract] of Object.entries(EXPECTED_STRUCTURE[intentType])) {
+    const root = findRootComponent(messages, surfaceId);
+    if (!root) {
+      throw new Error(
+        `LLM-generated structure for intent "${intentType}" is missing expected surface: ${surfaceId}`
+      );
+    }
+    if (root.component !== contract.component) {
+      throw new Error(
+        `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" has component ` +
+          `"${String(root.component)}", expected "${contract.component}"`
+      );
+    }
+    for (const [propName, expectedPath] of Object.entries(contract.paths)) {
+      const actualPath = (root[propName] as { path?: string } | undefined)?.path;
+      if (actualPath !== expectedPath) {
+        throw new Error(
+          `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" binds ` +
+            `"${propName}" to "${actualPath ?? "(missing)"}", expected "${expectedPath}"`
+        );
+      }
+    }
+    for (const [propName, expectedPath] of Object.entries(contract.optionalPaths ?? {})) {
+      if (!(propName in root)) continue;
+      const actualPath = (root[propName] as { path?: string } | undefined)?.path;
+      if (actualPath !== expectedPath) {
+        throw new Error(
+          `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" binds ` +
+            `"${propName}" to "${actualPath ?? "(missing)"}", expected "${expectedPath}"`
+        );
+      }
+    }
+  }
+}
 
 async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiMessage[]> {
   const cacheKey = buildCacheKey(intentType);
@@ -71,22 +151,10 @@ async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiM
     prompt: STRUCTURE_PROMPTS[intentType],
   });
 
-  const generatedSurfaceIds = new Set(surfaceIdsInOrder(object.messages));
-  const missing = EXPECTED_SURFACE_IDS[intentType].filter((id) => !generatedSurfaceIds.has(id));
-  if (missing.length > 0) {
-    throw new Error(
-      `LLM-generated structure for intent "${intentType}" is missing expected surface(s): ${missing.join(", ")}`
-    );
-  }
+  validateStructure(intentType, object.messages);
 
   setCachedSchema(cacheKey, object.messages);
   return object.messages;
-}
-
-function surfaceIdsInOrder(messages: A2uiMessage[]): string[] {
-  return messages
-    .filter((m): m is Extract<A2uiMessage, { createSurface: unknown }> => "createSurface" in m)
-    .map((m) => m.createSurface.surfaceId);
 }
 
 async function buildSingleFundData(schemeCodes: number[]) {
