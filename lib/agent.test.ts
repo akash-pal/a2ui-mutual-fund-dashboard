@@ -247,6 +247,98 @@ describe("buildA2uiResponse", () => {
     expect(typeof (insightData?.updateDataModel.value as { insightText: unknown }).insightText).toBe("string");
   });
 
+  it("does not fail the whole category ranking when one scheme's NAV fetch fails", async () => {
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [{ type: "text", text: JSON.stringify(CATEGORY_RANKING_STRUCTURE) }],
+          warnings: [],
+        },
+      }) as never
+    );
+    const today = new Date();
+    vi.mocked(fetchSchemeNav).mockImplementation(async (code: number) => {
+      if (code === 2) throw new Error("network error");
+      return {
+        meta: {
+          fund_house: "Example AMC",
+          scheme_type: "Open Ended",
+          scheme_category: "Large Cap Fund",
+          scheme_code: code,
+          scheme_name: `Fund ${code}`,
+        },
+        data: [{ date: formatDate(today), nav: 100 + code }],
+      };
+    });
+
+    const messages = await buildA2uiResponse({
+      type: "category_ranking",
+      schemeCodes: [1, 2, 3],
+      category: "large cap",
+    });
+    const dataMessages = messages.filter(
+      (m): m is Extract<typeof m, { updateDataModel: unknown }> => "updateDataModel" in m
+    );
+    const listData = dataMessages.find((m) => m.updateDataModel.surfaceId === "list");
+    const items = (listData?.updateDataModel.value as { items: Array<{ name: string }> }).items;
+    // Scheme 2's fetch rejected -- the ranking still returns the other two, not an error.
+    expect(items.map((i) => i.name).sort()).toEqual(["Fund 1", "Fund 3"]);
+  });
+
+  it("limits the ranked category list to the top results even when many candidates were fetched", async () => {
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [{ type: "text", text: JSON.stringify(CATEGORY_RANKING_STRUCTURE) }],
+          warnings: [],
+        },
+      }) as never
+    );
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    vi.mocked(fetchSchemeNav).mockImplementation(async (code: number) => ({
+      meta: {
+        fund_house: "Example AMC",
+        scheme_type: "Open Ended",
+        scheme_category: "Large Cap Fund",
+        scheme_code: code,
+        scheme_name: `Fund ${code}`,
+      },
+      // Distinct, increasing 1Y returns per code so ranking order is unambiguous.
+      data: [
+        { date: formatDate(today), nav: 100 + code },
+        { date: formatDate(oneYearAgo), nav: 100 },
+      ],
+    }));
+    const schemeCodes = Array.from({ length: 15 }, (_, i) => i + 1);
+
+    const messages = await buildA2uiResponse({
+      type: "category_ranking",
+      schemeCodes,
+      category: "large cap",
+    });
+    const dataMessages = messages.filter(
+      (m): m is Extract<typeof m, { updateDataModel: unknown }> => "updateDataModel" in m
+    );
+    const listData = dataMessages.find((m) => m.updateDataModel.surfaceId === "list");
+    const items = (listData?.updateDataModel.value as { items: Array<{ name: string }> }).items;
+    expect(items.length).toBe(10);
+    // Highest 1Y return (code 15) must lead, confirming this is a top-N slice of the
+    // sorted ranking, not just the first 10 scheme codes in input order.
+    expect(items[0].name).toBe("Fund 15");
+  });
+
   it("throws a clear error when the LLM-generated structure is missing an expected surface", async () => {
     vi.mocked(getModel).mockReturnValue(
       new MockLanguageModelV4({

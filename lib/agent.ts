@@ -12,6 +12,11 @@ import { buildCacheKey, getCachedSchema, setCachedSchema } from "./cache";
 import { A2uiMessageSchema, CATALOG_ID, type A2uiMessage } from "./catalog-messages";
 import type { ResolvedIntent } from "./intent";
 
+// A category ranking can fetch NAV history for dozens of candidate schemes (see
+// MAX_CATEGORY_CANDIDATES in lib/intent.ts) -- show only the top results, not
+// every candidate that was fetched to determine them.
+const MAX_RANKING_RESULTS = 10;
+
 const StructureResponseSchema = z.object({
   messages: z.array(A2uiMessageSchema).min(1),
 });
@@ -120,13 +125,20 @@ async function buildCompareFundsData(schemeCodes: number[]) {
 }
 
 async function buildCategoryRankingData(schemeCodes: number[], category: string | undefined) {
-  const navs = await Promise.all(schemeCodes.map((code) => fetchSchemeNav(code)));
+  // allSettled, not all -- a category ranking fetches dozens of schemes at once (see
+  // MAX_CATEGORY_CANDIDATES), and one bad/slow fetch among them shouldn't fail the
+  // whole ranking when the rest succeeded.
+  const results = await Promise.allSettled(schemeCodes.map((code) => fetchSchemeNav(code)));
+  const navs = results
+    .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchSchemeNav>>> => r.status === "fulfilled")
+    .map((r) => r.value);
   const ranked = navs
     .map((nav) => ({
       name: nav.meta.scheme_name,
       oneYearReturn: computeTrailingReturns(nav.data)["1Y"],
     }))
-    .sort((a, b) => (b.oneYearReturn ?? -Infinity) - (a.oneYearReturn ?? -Infinity));
+    .sort((a, b) => (b.oneYearReturn ?? -Infinity) - (a.oneYearReturn ?? -Infinity))
+    .slice(0, MAX_RANKING_RESULTS);
   const items = ranked.map((r) => ({
     name: r.name,
     value: r.oneYearReturn === null ? "N/A" : `${r.oneYearReturn.toFixed(1)}%`,

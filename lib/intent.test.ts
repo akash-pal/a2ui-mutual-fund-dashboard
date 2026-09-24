@@ -149,4 +149,30 @@ describe("resolveIntent", () => {
     expect(result.type).toBe("single_fund");
     expect(result.schemeCodes).toEqual([]);
   });
+
+  it("de-duplicates Direct/Growth variants even when mfapi.in omits spaces around the hyphen", () => {
+    // Real mfapi.in data is inconsistent about spacing: "UTI Large Cap Fund-Growth
+    // Option" (no spaces) is just as common as "Fund - Growth Option" (spaces). Without
+    // handling both forms, these would clean to different names and dedupe as two
+    // separate "funds" instead of one.
+    const realisticSchemes: SchemeListEntry[] = [
+      { schemeCode: 30, schemeName: "UTI Large Cap Fund-Regular Plan-Growth Option" },
+      { schemeCode: 31, schemeName: "UTI Large Cap Fund-Direct Plan-Growth Option" },
+    ];
+    const result = resolveIntent("Show me the best large cap funds", realisticSchemes);
+    expect(result.type).toBe("category_ranking");
+    expect(result.schemeCodes).toEqual([31]);
+  });
+
+  it("caps the number of category_ranking candidates instead of resolving every matching scheme", () => {
+    // A real category like "large cap" matches 400+ schemes before de-duplication --
+    // fetching NAV history for all of them would mean hundreds of parallel HTTP calls.
+    const manySchemes: SchemeListEntry[] = Array.from({ length: 200 }, (_, i) => ({
+      schemeCode: 1000 + i,
+      schemeName: `Sample Large Cap Fund ${i} - Direct Plan - Growth Option`,
+    }));
+    const result = resolveIntent("Show me the best large cap funds", manySchemes);
+    expect(result.type).toBe("category_ranking");
+    expect(result.schemeCodes.length).toBeLessThanOrEqual(30);
+  });
 });

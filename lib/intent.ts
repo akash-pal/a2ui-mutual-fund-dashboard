@@ -10,6 +10,14 @@ export interface ResolvedIntent {
 
 const CATEGORY_KEYWORDS = ["large cap", "mid cap", "small cap", "flexi cap", "multi cap", "elss"];
 
+// A real category like "large cap" matches 400+ schemes before de-duplication --
+// fetching NAV history for all of them would mean hundreds of parallel HTTP calls
+// and tens of MB per query, against a free API with no server-side filter or sort.
+// There's no way to know which candidates rank best without fetching their NAV
+// history first, so this bounds the fetch fan-out at the cost of not guaranteeing
+// the single best-ever fund is included if it falls outside this many candidates.
+const MAX_CATEGORY_CANDIDATES = 30;
+
 /** Strips the plan (Direct/Regular) and option (Growth/IDCW/Dividend) suffixes that
  * every real mfapi.in scheme name carries, so "Fund X - Direct Plan - Growth Option"
  * and "Fund X - Regular Plan - IDCW Option" both reduce to the same base "fund x". */
@@ -17,17 +25,19 @@ function cleanSchemeName(name: string): string {
   return name
     .toLowerCase()
     .replace(
-      / - direct plan| - regular plan| - growth option| - idcw option| - dividend option| - growth| - idcw| - dividend/g,
+      /\s*-\s*(direct plan|regular plan|growth option|idcw option|dividend option|growth|idcw|dividend)/g,
       ""
     )
     .trim();
 }
 
-// Matched against the same " - <suffix>" delimited form cleanSchemeName strips --
-// a bare `.includes("growth")` would false-positive on funds whose own name
+// Matched against the same "-<suffix>" delimited form cleanSchemeName strips -- \s*
+// around the hyphen because real mfapi.in data isn't consistent about spacing it
+// (e.g. "UTI Large Cap Fund-Growth Option" has none, "Fund - Growth Option" does).
+// A bare `.includes("growth")` would also false-positive on funds whose own name
 // contains that word (e.g. the real "Nippon India Growth Mid Cap Fund").
-const DIRECT_SUFFIX = / - direct plan/i;
-const GROWTH_SUFFIX = / - growth option| - growth\b/i;
+const DIRECT_SUFFIX = /\s*-\s*direct plan/i;
+const GROWTH_SUFFIX = /\s*-\s*growth option|\s*-\s*growth\b/i;
 
 // Real mfapi.in data includes degenerate schemes named literally "Growth" (code
 // 104031) and "Dividend" (104030), with no fund name at all. After cleaning, these
@@ -128,7 +138,9 @@ export function resolveIntent(query: string, schemes: SchemeListEntry[]): Resolv
   const category = findCategoryInQuery(lowerQuery);
   if (category && /\bbest\b|\btop\b/.test(lowerQuery)) {
     const matching = schemes.filter((s) => s.schemeName.toLowerCase().includes(category));
-    const schemeCodes = dedupeByCleanedName(matching).map((s) => s.schemeCode);
+    const schemeCodes = dedupeByCleanedName(matching)
+      .map((s) => s.schemeCode)
+      .slice(0, MAX_CATEGORY_CANDIDATES);
     return { type: "category_ranking", schemeCodes, category };
   }
 
