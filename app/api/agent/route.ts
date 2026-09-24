@@ -9,7 +9,23 @@ import { buildA2uiResponse } from "@/lib/agent";
 // and rejects obviously-pathological input early.
 const MAX_QUERY_LENGTH = 500;
 
+// Unlike Server Actions, an App Router Route Handler has no default request body
+// size limit -- request.json() will attempt to buffer and parse the entire body
+// before any of this route's own checks can run. A real request here is a tiny
+// JSON object with one short string field, so reject anything wildly larger up
+// front based on Content-Length, before ever calling request.json(). This only
+// catches a client that reports its size honestly (a normal browser fetch() call
+// does) -- it's not a defense against a client that sends a large body while lying
+// about or omitting the header; that requires a streaming byte-counting read, or
+// relying on the hosting platform's own request size limit.
+const MAX_REQUEST_BODY_BYTES = 10_000;
+
 export async function POST(request: Request): Promise<Response> {
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
+    return Response.json({ error: "Request body is too large." }, { status: 413 });
+  }
+
   const body = await request.json().catch(() => null);
   const query = body?.query;
   if (typeof query !== "string" || query.trim().length === 0) {

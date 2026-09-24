@@ -31,6 +31,22 @@ describe("POST /api/agent", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 413 without parsing the body when Content-Length exceeds the size cap", async () => {
+    // Node's Request constructor doesn't compute Content-Length from a string body
+    // the way a real HTTP client does when it actually sends the request over the
+    // wire -- set it explicitly here to simulate what the route handler would see
+    // for a real oversized request.
+    const rawBody = JSON.stringify({ query: "a".repeat(20_000) });
+    const req = new Request("http://localhost/api/agent", {
+      method: "POST",
+      headers: { "content-length": String(Buffer.byteLength(rawBody)) },
+      body: rawBody,
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(413);
+    expect(fetchSchemeList).not.toHaveBeenCalled();
+  });
+
   it("returns 400 without calling fetchSchemeList when the query is too long", async () => {
     const req = new Request("http://localhost/api/agent", {
       method: "POST",
