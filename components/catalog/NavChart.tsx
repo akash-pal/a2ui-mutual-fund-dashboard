@@ -1,18 +1,9 @@
-import { z } from "zod3";
-import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NavChartApi, NavChartPropsSchema } from "./NavChart.schema";
 
-export const NavChartPropsSchema = z.object({
-  title: CommonSchemas.DynamicString,
-  points: CommonSchemas.DataBinding, // always {path}: real numbers are never literals
-});
-
-export const NavChartApi: ComponentApi<typeof NavChartPropsSchema> = {
-  name: "NavChart",
-  schema: NavChartPropsSchema,
-};
+export { NavChartApi, NavChartPropsSchema };
 
 export const NavChart = createComponentImplementation(NavChartApi, ({ props }) => {
   const points = Array.isArray(props.points) ? (props.points as Array<{ date: string; nav: number }>) : [];

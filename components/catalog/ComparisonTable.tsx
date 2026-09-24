@@ -1,5 +1,3 @@
-import { z } from "zod3";
-import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import {
   Table,
@@ -10,17 +8,9 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ComparisonTableApi, ComparisonTablePropsSchema } from "./ComparisonTable.schema";
 
-export const ComparisonTablePropsSchema = z.object({
-  title: CommonSchemas.DynamicString,
-  columns: z.array(z.string()).min(1),
-  rows: CommonSchemas.DataBinding, // always {path}: real values are never literals
-});
-
-export const ComparisonTableApi: ComponentApi<typeof ComparisonTablePropsSchema> = {
-  name: "ComparisonTable",
-  schema: ComparisonTablePropsSchema,
-};
+export { ComparisonTableApi, ComparisonTablePropsSchema };
 
 export const ComparisonTable = createComponentImplementation(ComparisonTableApi, ({ props }) => {
   const rows = Array.isArray(props.rows) ? (props.rows as Array<Array<string | number>>) : [];

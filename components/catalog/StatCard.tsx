@@ -1,18 +1,8 @@
-import { z } from "zod3";
-import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCardApi, StatCardPropsSchema } from "./StatCard.schema";
 
-export const StatCardPropsSchema = z.object({
-  label: CommonSchemas.DynamicString,
-  value: CommonSchemas.DynamicString,
-  trend: CommonSchemas.DynamicString.optional(),
-});
-
-export const StatCardApi: ComponentApi<typeof StatCardPropsSchema> = {
-  name: "StatCard",
-  schema: StatCardPropsSchema,
-};
+export { StatCardApi, StatCardPropsSchema };
 
 export const StatCard = createComponentImplementation(StatCardApi, ({ props }) => {
   const trendColor =

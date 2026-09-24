@@ -9,7 +9,7 @@ import {
   generateRankingInsight,
 } from "./insights";
 import { buildCacheKey, getCachedSchema, setCachedSchema } from "./cache";
-import { A2uiMessageSchema, CATALOG_ID, type A2uiMessage } from "./catalog";
+import { A2uiMessageSchema, CATALOG_ID, type A2uiMessage } from "./catalog-messages";
 import type { ResolvedIntent } from "./intent";
 
 const StructureResponseSchema = z.object({

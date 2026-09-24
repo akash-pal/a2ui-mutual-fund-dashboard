@@ -1,17 +1,8 @@
-import { z } from "zod3";
-import { CommonSchemas, type ComponentApi } from "@a2ui/web_core/v0_9";
 import { createComponentImplementation } from "@a2ui/react/v0_9";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RankedListApi, RankedListPropsSchema } from "./RankedList.schema";
 
-export const RankedListPropsSchema = z.object({
-  title: CommonSchemas.DynamicString,
-  items: CommonSchemas.DataBinding, // always {path}: real values are never literals
-});
-
-export const RankedListApi: ComponentApi<typeof RankedListPropsSchema> = {
-  name: "RankedList",
-  schema: RankedListPropsSchema,
-};
+export { RankedListApi, RankedListPropsSchema };
 
 export const RankedList = createComponentImplementation(RankedListApi, ({ props }) => {
   const items = Array.isArray(props.items) ? (props.items as Array<{ name: string; value: string }>) : [];
