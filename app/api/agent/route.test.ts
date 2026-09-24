@@ -31,6 +31,16 @@ describe("POST /api/agent", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 without calling fetchSchemeList when the query is too long", async () => {
+    const req = new Request("http://localhost/api/agent", {
+      method: "POST",
+      body: JSON.stringify({ query: "a".repeat(501) }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect(fetchSchemeList).not.toHaveBeenCalled();
+  });
+
   it("resolves intent and returns the built messages for a valid query", async () => {
     const req = new Request("http://localhost/api/agent", {
       method: "POST",

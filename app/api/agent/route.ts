@@ -2,11 +2,24 @@ import { fetchSchemeList } from "@/lib/mfapi";
 import { resolveIntent } from "@/lib/intent";
 import { buildA2uiResponse } from "@/lib/agent";
 
+// No real query about a specific fund needs anywhere near this many characters.
+// The raw query text is never sent to an LLM (intent resolution is fully
+// deterministic -- see lib/intent.ts), but resolveIntent does run substring checks
+// against the full ~75k-entry scheme list for every query, so this bounds that work
+// and rejects obviously-pathological input early.
+const MAX_QUERY_LENGTH = 500;
+
 export async function POST(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   const query = body?.query;
   if (typeof query !== "string" || query.trim().length === 0) {
     return Response.json({ error: "Missing required field: query" }, { status: 400 });
+  }
+  if (query.length > MAX_QUERY_LENGTH) {
+    return Response.json(
+      { error: `Query is too long (max ${MAX_QUERY_LENGTH} characters).` },
+      { status: 400 }
+    );
   }
 
   try {

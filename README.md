@@ -35,8 +35,10 @@ npm test
 [mfapi.in](https://www.mfapi.in/) — free, unauthenticated, unrated-limited
 NAV history and scheme metadata for Indian mutual funds. No holdings,
 expense ratio, or AUM data is available, so "analysis" here means
-NAV-history-derived metrics (trailing returns, volatility, drawdown), not
-portfolio composition.
+NAV-history-derived metrics, not portfolio composition. The app currently
+surfaces trailing returns (1M/3M/1Y/3Y/5Y); `lib/metrics.ts` also implements
+CAGR, annualized volatility, and max drawdown (tested, but not yet wired
+into any catalog component).
 
 Real scheme names always carry both a plan qualifier (Direct/Regular Plan)
 and an option qualifier (Growth/IDCW/Dividend Option) — e.g. "HDFC Flexi
