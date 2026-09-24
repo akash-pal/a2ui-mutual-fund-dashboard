@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 16 (client-side A2UI surface renderer) is starting now.
+- Task 17 (query input + main page wiring) is starting now.
 
 ## Up next (in order)
 
-16. Client-side A2UI surface renderer
 17. Query input + main page wiring
 18. Manual smoke test + README
 
@@ -78,3 +77,9 @@ full implementation plan this is executing.
     Fixed by splitting each catalog component's schema out into its own file, separate from its
     UI code — this required touching the five already-completed catalog components, but keeps
     everything else about them unchanged. Full suite 68/68, production build verified working.
+16. **Client-side A2UI surface renderer** (`components/A2UISurface.tsx`) — drives the real
+    `MessageProcessor` and renders the resulting surfaces. Tracing a review's "worth watching
+    later" note into the next task's actual page code turned up a guaranteed crash: the renderer
+    reused one processor for the whole session, but every new question reuses the same surface
+    names, so asking a second question would have thrown immediately. Fixed by giving each new
+    question's answer its own processor. 3/3 tests passing, full suite unaffected.
