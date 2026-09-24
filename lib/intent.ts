@@ -29,6 +29,13 @@ function cleanSchemeName(name: string): string {
 const DIRECT_SUFFIX = / - direct plan/i;
 const GROWTH_SUFFIX = / - growth option| - growth\b/i;
 
+// Real mfapi.in data includes degenerate schemes named literally "Growth" (code
+// 104031) and "Dividend" (104030), with no fund name at all. After cleaning, these
+// reduce to a single generic word that's a substring of countless real funds' own
+// names (e.g. "Nippon India Growth Mid Cap Fund", "XYZ Dividend Yield Fund") --
+// never let one of these win a match over a real, longer fund name.
+const GENERIC_STANDALONE_NAMES = new Set(["growth", "idcw", "dividend"]);
+
 function isDirectVariant(schemeName: string): boolean {
   return DIRECT_SUFFIX.test(schemeName);
 }
@@ -72,6 +79,7 @@ function findSchemeCode(text: string, schemes: SchemeListEntry[]): number | null
   let best: { scheme: SchemeListEntry; length: number } | null = null;
   for (const scheme of schemes) {
     const cleaned = cleanSchemeName(scheme.schemeName);
+    if (GENERIC_STANDALONE_NAMES.has(cleaned)) continue;
     if (!normalized.includes(cleaned)) continue;
     const isBetter =
       !best ||
@@ -82,18 +90,6 @@ function findSchemeCode(text: string, schemes: SchemeListEntry[]): number | null
     }
   }
   return best?.scheme.schemeCode ?? null;
-}
-
-/**
- * Finds every distinct scheme mentioned in `query`. Real mfapi.in data lists the
- * same fund multiple times -- Direct/Regular Plan crossed with Growth/IDCW/Dividend
- * option -- so this de-duplicates by cleaned name, preferring the Direct+Growth
- * entry when a query names a fund with no plan/option qualifier (the common phrasing).
- */
-function findAllSchemesInQuery(query: string, schemes: SchemeListEntry[]): number[] {
-  const lowerQuery = query.toLowerCase();
-  const matching = schemes.filter((scheme) => lowerQuery.includes(cleanSchemeName(scheme.schemeName)));
-  return dedupeByCleanedName(matching).map((s) => s.schemeCode);
 }
 
 /**
@@ -136,6 +132,10 @@ export function resolveIntent(query: string, schemes: SchemeListEntry[]): Resolv
     return { type: "category_ranking", schemeCodes, category };
   }
 
-  const schemeCodes = findAllSchemesInQuery(query, schemes);
-  return { type: "single_fund", schemeCodes };
+  // Use the same single-best-match logic as the comparison path (longest match
+  // wins), not "every substring match in insertion order" -- a query naming one
+  // real fund must never lose to an unrelated, shorter, order-arbitrary match
+  // (see GENERIC_STANDALONE_NAMES above for the concrete case this guards against).
+  const schemeCode = findSchemeCode(query, schemes);
+  return { type: "single_fund", schemeCodes: schemeCode !== null ? [schemeCode] : [] };
 }

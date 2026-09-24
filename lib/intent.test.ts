@@ -119,4 +119,34 @@ describe("resolveIntent", () => {
     expect(result.type).toBe("single_fund");
     expect(result.schemeCodes).toEqual([118668]);
   });
+
+  it("does not resolve a real fund's query to mfapi.in's degenerate bare-named 'Growth'/'Dividend' schemes", () => {
+    // Real mfapi.in data includes schemes literally named "Growth" (code 104031) and
+    // "Dividend" (104030), with no fund name at all -- after cleaning, both are
+    // substrings of the real "Nippon India Growth Mid Cap Fund"'s own name. Listing
+    // the degenerate schemes FIRST would have made the old "collect every substring
+    // match, take the first by insertion order" logic pick 104031 over the real,
+    // much longer match.
+    const realisticSchemes: SchemeListEntry[] = [
+      { schemeCode: 104031, schemeName: "Growth" },
+      { schemeCode: 104030, schemeName: "Dividend" },
+      { schemeCode: 100375, schemeName: "Nippon India Growth Mid Cap Fund - Regular Plan - IDCW Option" },
+      { schemeCode: 100377, schemeName: "Nippon India Growth Mid Cap Fund - Regular Plan - Growth Option" },
+      { schemeCode: 118666, schemeName: "Nippon India Growth Mid Cap Fund - Direct Plan - IDCW Option" },
+      { schemeCode: 118668, schemeName: "Nippon India Growth Mid Cap Fund - Direct Plan - Growth Option" },
+    ];
+    const result = resolveIntent("How has Nippon India Growth Mid Cap Fund done?", realisticSchemes);
+    expect(result.type).toBe("single_fund");
+    expect(result.schemeCodes).toEqual([118668]);
+  });
+
+  it("returns no match for a query that only mentions a degenerate bare-named scheme's word", () => {
+    const realisticSchemes: SchemeListEntry[] = [
+      { schemeCode: 104031, schemeName: "Growth" },
+      { schemeCode: 104030, schemeName: "Dividend" },
+    ];
+    const result = resolveIntent("Tell me about growth funds", realisticSchemes);
+    expect(result.type).toBe("single_fund");
+    expect(result.schemeCodes).toEqual([]);
+  });
 });
