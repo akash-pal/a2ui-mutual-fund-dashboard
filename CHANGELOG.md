@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 14 (agent orchestration — cache-first structure, always-fresh data) is starting now.
+- Task 15 (`/api/agent` route handler) is starting now.
 
 ## Up next (in order)
 
-14. Agent orchestration (cache-first structure, always-fresh data)
 15. `/api/agent` route handler
 16. Client-side A2UI surface renderer
 17. Query input + main page wiring
@@ -65,3 +64,10 @@ full implementation plan this is executing.
     10/10 tests passing, full suite 55/55.
 13. **Provider-agnostic model selection** (`lib/llm.ts`) — picks Anthropic or OpenAI via an env
     var, for the Vercel AI SDK. 3/3 tests passing, reviewed clean.
+14. **Agent orchestration** (`lib/agent.ts`) — the core of the app: resolves an intent into a
+    cache-first LLM call for UI structure, plus always-fresh NAV data and deterministic insight
+    text computed on every request regardless of cache hit/miss. Review caught a real fragility
+    (data could land on the wrong UI surface if the LLM's output order varied, and a bad result
+    would get cached permanently); fixed by matching surfaces by name instead of position, with a
+    validation check before anything is cached. Test coverage extended to all three query types.
+    8/8 tests passing, full suite 66/66.
