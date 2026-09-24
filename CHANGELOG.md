@@ -8,8 +8,9 @@ full implementation plan this is executing.
 ## In progress
 
 All 18 planned tasks are complete. The final whole-branch review found the app was
-broken end to end (see below) — that's fixed. A few more real issues from that same
-review are still being worked through before this is ready to merge.
+broken end to end (see below) — that's fixed, along with every other significant
+finding from that review. What's left is going through the smaller, lower-impact
+findings from the same review before this is ready to merge.
 
 ## Final review findings
 
@@ -25,14 +26,42 @@ data shape in isolation, never a real render through the full pipeline. Fixed, w
 new tests that render through the real pipeline for all four components — each
 checked to genuinely fail without the fix before being accepted.
 
-Also fixed: mutual funds that haven't been updated in a while were showing a
-misleading "0% return" instead of "not available," because the calculation was
-comparing the same stale data point to itself.
+(Correction to Task 18's note below: the render crash seen during that task's live
+smoke test was assumed at the time to be a quirk of the weak local model substituted
+after the API credit ran out. It wasn't — it was this exact bug, provider-independent,
+confirmed by reading the rendering library's own source. Recorded here so the record
+stays accurate.)
 
-Still being worked through: a few more findings from that same review (a client-side
-error boundary so one bad response can't take down the whole page, a prompt wording
-mismatch that could misalign comparison-table columns, and the "best funds" ranking
-not holding up well against the full real-world fund list).
+Also fixed:
+- Mutual funds that haven't been updated in a while were showing a misleading "0%
+  return" instead of "not available," because the calculation was comparing the same
+  stale data point to itself.
+- Added a client-side error boundary around the rendered dashboard, so a malformed
+  or unexpected response can no longer take down the whole page with a blank screen —
+  it now shows a plain "something went wrong, try again" message instead, and a fresh
+  question always gets a clean slate rather than staying stuck on a past error.
+- The fund-comparison table's column headers were written independently from its
+  rows by the LLM prompt, so a header-count/row-width mismatch was possible. Columns
+  are now supplied by the app itself alongside the rows, so they can never drift apart.
+- A single-fund question could resolve to the wrong fund, or to no fund at all, when
+  the real fund list happened to also contain one of two oddly-named entries that
+  are literally just the words "Growth" or "Dividend" with no fund name attached
+  (confirmed these exist in the live mfapi.in data). Fixed by using the same
+  "best, most specific match wins" logic already used for comparison queries, and
+  by ignoring those two bare entries as possible matches entirely.
+
+- The "best funds" (category ranking) query type didn't hold up against the full
+  real-world fund list: a popular category like "large cap" matches over 400 real
+  schemes, which would have meant fetching data for all of them at once (confirmed
+  against the live fund list); one bad fetch among them would have failed the whole
+  request; and some duplicate listings of the same fund (ones where the source data
+  omits a space before the plan/option name) could slip past the de-duplication.
+  Fixed by capping how many candidate funds are looked up per query, tolerating one
+  or two of them failing to load without failing the whole request, showing only the
+  top 10 results, and fixing the de-duplication gap.
+
+Still being worked through: a handful of smaller, lower-impact findings from the
+same review (see the plan's task list for details) before this is ready to merge.
 
 ## Done
 
