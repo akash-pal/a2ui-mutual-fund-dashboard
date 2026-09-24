@@ -70,7 +70,7 @@ const COMPARE_FUNDS_STRUCTURE = {
             component: "ComparisonTable",
             id: "root",
             title: "Fund Comparison",
-            columns: ["Fund", "1Y Return", "3Y Return"],
+            columns: { path: "/columns" },
             rows: { path: "/rows" },
           },
         ],
@@ -209,7 +209,13 @@ describe("buildA2uiResponse", () => {
     );
     const tableData = dataMessages.find((m) => m.updateDataModel.surfaceId === "table");
     const insightData = dataMessages.find((m) => m.updateDataModel.surfaceId === "insight");
-    expect(Array.isArray((tableData?.updateDataModel.value as { rows: unknown }).rows)).toBe(true);
+    const tableValue = tableData?.updateDataModel.value as { columns: unknown; rows: unknown[] };
+    expect(Array.isArray(tableValue.rows)).toBe(true);
+    // The server (not the LLM) supplies columns, so their count always matches
+    // each row's cell count -- guards against the columns/rows mismatch the
+    // original literal-array prompt could produce.
+    expect(tableValue.columns).toEqual(["Fund", "1Y Return", "3Y Return"]);
+    expect(tableValue.rows.every((row) => Array.isArray(row) && row.length === (tableValue.columns as unknown[]).length)).toBe(true);
     expect(typeof (insightData?.updateDataModel.value as { insightText: unknown }).insightText).toBe("string");
   });
 

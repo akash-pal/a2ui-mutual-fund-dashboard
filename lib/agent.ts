@@ -27,7 +27,7 @@ const STRUCTURE_PROMPTS: Record<ResolvedIntent["type"], string> = {
 3. surfaceId "insight": one createSurface + one updateComponents whose single root component is "InsightCallout", with text bound to {"path":"/insightText"}.
 Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
   compare_funds: `Produce A2UI v0.9 "messages" for a page with TWO surfaces, in this order:
-1. surfaceId "table": one createSurface + one updateComponents whose single root component is "ComparisonTable", with title as a literal string, columns as a literal array of short header strings (e.g. ["Fund","1Y Return"]), and rows bound to {"path":"/rows"}.
+1. surfaceId "table": one createSurface + one updateComponents whose single root component is "ComparisonTable", with title as a literal string, columns bound to {"path":"/columns"}, and rows bound to {"path":"/rows"}.
 2. surfaceId "insight": one createSurface + one updateComponents whose single root component is "InsightCallout", with text bound to {"path":"/insightText"}.
 Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for every createSurface. Do not include any updateDataModel messages or literal numeric values.`,
   category_ranking: `Produce A2UI v0.9 "messages" for a page with TWO surfaces, in this order:
@@ -114,7 +114,7 @@ async function buildCompareFundsData(schemeCodes: number[]) {
     }))
   );
   return {
-    table: { rows },
+    table: { columns: ["Fund", "1Y Return", "3Y Return"], rows },
     insight: { insightText: insight },
   };
 }

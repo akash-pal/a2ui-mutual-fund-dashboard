@@ -14,6 +14,7 @@ export { ComparisonTableApi, ComparisonTablePropsSchema };
 
 export const ComparisonTable = createComponentImplementation(ComparisonTableApi, ({ props }) => {
   const rows = Array.isArray(props.rows) ? (props.rows as Array<Array<string | number>>) : [];
+  const columns = Array.isArray(props.columns) ? props.columns : [];
   return (
     <Card>
       <CardHeader>
@@ -23,8 +24,8 @@ export const ComparisonTable = createComponentImplementation(ComparisonTableApi,
         <Table>
           <TableHeader>
             <TableRow>
-              {(props.columns as string[]).map((col) => (
-                <TableHead key={col}>{col}</TableHead>
+              {columns.map((col, i) => (
+                <TableHead key={`${col}-${i}`}>{col}</TableHead>
               ))}
             </TableRow>
           </TableHeader>

@@ -43,6 +43,7 @@ export const AnyCatalogComponentSchema = z.discriminatedUnion("component", [
     component: z.literal(ComparisonTableApi.name),
     ...envelope,
     ...ComparisonTablePropsSchema.shape,
+    columns: CommonSchemas.DataBinding,
     rows: CommonSchemas.DataBinding,
   }),
   z.object({

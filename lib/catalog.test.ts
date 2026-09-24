@@ -136,8 +136,30 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
             component: "ComparisonTable",
             id: "root",
             title: "Fund Comparison",
-            columns: ["Fund", "1Y Return"],
+            columns: { path: "/columns" },
             rows: [["Fund A", "12%"]],
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a literal columns array for ComparisonTable", () => {
+    // columns is server-supplied alongside rows (not LLM-authored) precisely so
+    // the header count can never drift from the real row width -- this guards
+    // against that enforcement being silently lost.
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "table",
+        components: [
+          {
+            component: "ComparisonTable",
+            id: "root",
+            title: "Fund Comparison",
+            columns: ["Fund", "1Y Return"],
+            rows: { path: "/rows" },
           },
         ],
       },

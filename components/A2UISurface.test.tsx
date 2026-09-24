@@ -127,7 +127,7 @@ describe("A2UISurfaceList", () => {
               component: "ComparisonTable",
               id: "root",
               title: "Fund Comparison",
-              columns: ["Fund", "1Y Return"],
+              columns: { path: "/columns" },
               rows: { path: "/rows" },
             },
           ],
@@ -137,7 +137,10 @@ describe("A2UISurfaceList", () => {
         version: "v0.9",
         updateDataModel: {
           surfaceId: "table",
-          value: { rows: [["Example Fund A", "12.3%"], ["Example Fund B", "9.8%"]] },
+          value: {
+            columns: ["Fund", "1Y Return"],
+            rows: [["Example Fund A", "12.3%"], ["Example Fund B", "9.8%"]],
+          },
         },
       },
     ];
