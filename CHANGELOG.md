@@ -7,11 +7,10 @@ full implementation plan this is executing.
 
 ## In progress
 
-- Task 12 (wire the five components into the real A2UI catalog + message schema) is starting now.
+- Task 13 (provider-agnostic model selection) is starting now.
 
 ## Up next (in order)
 
-12. Wire the five components into the real A2UI catalog + message schema
 13. Provider-agnostic model selection (Anthropic/OpenAI via env var)
 14. Agent orchestration (cache-first structure, always-fresh data)
 15. `/api/agent` route handler
@@ -60,3 +59,8 @@ full implementation plan this is executing.
 11. **`InsightCallout` catalog component** (`components/catalog/InsightCallout.tsx`) — a styled
     callout for deterministic insight commentary. This completes all five catalog components.
     2/2 tests passing, reviewed clean.
+12. **Wired the real A2UI catalog + message schema** (`lib/catalog.ts`) — the five components are
+    now registered in a real `Catalog` instance, with a Zod schema validating messages against the
+    actual A2UI v0.9 protocol. Review caught two places where the schema was stricter/looser than
+    the real spec (data-model update values, required component IDs); fixed and covered by tests.
+    10/10 tests passing, full suite 55/55.
