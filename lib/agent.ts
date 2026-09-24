@@ -9,7 +9,12 @@ import {
   generateRankingInsight,
 } from "./insights";
 import { buildCacheKey, getCachedSchema, setCachedSchema } from "./cache";
-import { A2uiMessageSchema, CATALOG_ID, type A2uiMessage } from "./catalog-messages";
+import {
+  StructureMessageSchema,
+  CATALOG_ID,
+  type A2uiMessage,
+  type StructureMessage,
+} from "./catalog-messages";
 import type { ResolvedIntent } from "./intent";
 
 // A category ranking can fetch NAV history for dozens of candidate schemes (see
@@ -18,12 +23,12 @@ import type { ResolvedIntent } from "./intent";
 const MAX_RANKING_RESULTS = 10;
 
 const StructureResponseSchema = z.object({
-  messages: z.array(A2uiMessageSchema).min(1),
+  messages: z.array(StructureMessageSchema).min(1),
 });
 
 // Named separately (see the `generateObject` call below) so the schema's static type can be
 // pinned to this instead of letting TypeScript re-derive it from the zod3 schema each time.
-type StructureResponse = { messages: A2uiMessage[] };
+type StructureResponse = { messages: StructureMessage[] };
 
 const STRUCTURE_PROMPTS: Record<ResolvedIntent["type"], string> = {
   single_fund: `Produce A2UI v0.9 "messages" for a page with THREE surfaces, in this order:
@@ -49,21 +54,10 @@ Every component's "id" must be "root". catalogId must be "${CATALOG_ID}" for eve
 // wrong component in it, or bound a prop to the wrong path -- either would silently
 // show nothing/the wrong thing at render time instead of failing loudly here, where
 // a bad result can still be rejected before it's cached.
-type SurfaceContract = {
-  component: string;
-  paths: Record<string, string>;
-  optionalPaths?: Record<string, string>;
-};
+type SurfaceContract = { component: string; paths: Record<string, string> };
 const EXPECTED_STRUCTURE: Record<ResolvedIntent["type"], Record<string, SurfaceContract>> = {
   single_fund: {
-    // trend is an optional prop on StatCard (a soft enhancement, not load-bearing
-    // data) -- an LLM structure that omits it is still valid, but if it IS bound,
-    // it must point at the right place.
-    stat: {
-      component: "StatCard",
-      paths: { value: "/statValue" },
-      optionalPaths: { trend: "/statTrend" },
-    },
+    stat: { component: "StatCard", paths: { value: "/statValue", trend: "/statTrend" } },
     chart: { component: "NavChart", paths: { points: "/navPoints" } },
     insight: { component: "InsightCallout", paths: { text: "/insightText" } },
   },
@@ -106,16 +100,6 @@ function validateStructure(intentType: ResolvedIntent["type"], messages: A2uiMes
       );
     }
     for (const [propName, expectedPath] of Object.entries(contract.paths)) {
-      const actualPath = (root[propName] as { path?: string } | undefined)?.path;
-      if (actualPath !== expectedPath) {
-        throw new Error(
-          `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" binds ` +
-            `"${propName}" to "${actualPath ?? "(missing)"}", expected "${expectedPath}"`
-        );
-      }
-    }
-    for (const [propName, expectedPath] of Object.entries(contract.optionalPaths ?? {})) {
-      if (!(propName in root)) continue;
       const actualPath = (root[propName] as { path?: string } | undefined)?.path;
       if (actualPath !== expectedPath) {
         throw new Error(

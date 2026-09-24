@@ -21,7 +21,13 @@ const SINGLE_FUND_STRUCTURE = {
       updateComponents: {
         surfaceId: "stat",
         components: [
-          { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+          {
+            component: "StatCard",
+            id: "root",
+            label: "1-Year Return",
+            value: { path: "/statValue" },
+            trend: { path: "/statTrend" },
+          },
         ],
       },
     },
@@ -362,7 +368,13 @@ describe("buildA2uiResponse", () => {
                     updateComponents: {
                       surfaceId: "stat",
                       components: [
-                        { component: "StatCard", id: "root", label: "x", value: { path: "/statValue" } },
+                        {
+                          component: "StatCard",
+                          id: "root",
+                          label: "x",
+                          value: { path: "/statValue" },
+                          trend: { path: "/statTrend" },
+                        },
                       ],
                     },
                   },
@@ -403,7 +415,15 @@ describe("buildA2uiResponse", () => {
                     version: "v0.9",
                     updateComponents: {
                       surfaceId: "stat",
-                      components: [{ component: "StatCard", id: "root", label: "x", value: { path: "/statValue" } }],
+                      components: [
+                        {
+                          component: "StatCard",
+                          id: "root",
+                          label: "x",
+                          value: { path: "/statValue" },
+                          trend: { path: "/statTrend" },
+                        },
+                      ],
                     },
                   },
                   { version: "v0.9", createSurface: { surfaceId: "chart", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },

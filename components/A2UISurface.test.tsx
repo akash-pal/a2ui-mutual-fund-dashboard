@@ -31,7 +31,7 @@ describe("A2UISurfaceList", () => {
         updateComponents: {
           surfaceId: "stat",
           components: [
-            { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+            { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" }, trend: { path: "/statTrend" } },
           ],
         },
       },
@@ -57,7 +57,7 @@ describe("A2UISurfaceList", () => {
         updateComponents: {
           surfaceId: "stat",
           components: [
-            { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+            { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" }, trend: { path: "/statTrend" } },
           ],
         },
       },
@@ -70,7 +70,7 @@ describe("A2UISurfaceList", () => {
         updateComponents: {
           surfaceId: "stat",
           components: [
-            { component: "StatCard", id: "root", label: "3-Year Return", value: { path: "/statValue" } },
+            { component: "StatCard", id: "root", label: "3-Year Return", value: { path: "/statValue" }, trend: { path: "/statTrend" } },
           ],
         },
       },

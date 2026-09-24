@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MessageProcessor } from "@a2ui/web_core/v0_9";
-import { appCatalog, CATALOG_ID, A2uiMessageSchema } from "./catalog";
+import { appCatalog, CATALOG_ID, A2uiMessageSchema, StructureMessageSchema } from "./catalog";
 
 describe("appCatalog", () => {
   it("registers exactly the five catalog components", () => {
@@ -26,11 +26,34 @@ describe("A2uiMessageSchema", () => {
       updateComponents: {
         surfaceId: "stat",
         components: [
-          { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+          {
+            component: "StatCard",
+            id: "root",
+            label: "1-Year Return",
+            value: { path: "/statValue" },
+            trend: { path: "/statTrend" },
+          },
         ],
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  // trend used to be .optional() at this schema layer; OpenAI's structured-output
+  // mode has no concept of a truly optional object property (every key must be
+  // listed in `required`), so it's now required here, matching what the single_fund
+  // prompt already always asks for.
+  it("rejects a StatCard missing trend (required here, unlike the rendering-layer schema)", () => {
+    const result = A2uiMessageSchema.safeParse({
+      version: "v0.9",
+      updateComponents: {
+        surfaceId: "stat",
+        components: [
+          { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects an updateComponents message with no root component", () => {
@@ -76,7 +99,13 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
       updateComponents: {
         surfaceId: "stat",
         components: [
-          { component: "StatCard", id: "root", label: "1-Year Return", value: { path: "/statValue" } },
+          {
+            component: "StatCard",
+            id: "root",
+            label: "1-Year Return",
+            value: { path: "/statValue" },
+            trend: { path: "/statTrend" },
+          },
           { component: "InsightCallout", text: { path: "/insightText" } },
         ],
       },
@@ -232,6 +261,7 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
             id: "root",
             label: "1-Year Return",
             value: { call: "getValue", args: {}, returnType: "string" },
+            trend: { path: "/statTrend" },
           },
         ],
       },
@@ -262,7 +292,15 @@ describe("A2uiMessageSchema — additional protocol conformance", () => {
       version: "v0.9",
       updateComponents: {
         surfaceId: "stat",
-        components: [{ component: "StatCard", id: "root", label: "1-Year Return", value: "+18.4%" }],
+        components: [
+          {
+            component: "StatCard",
+            id: "root",
+            label: "1-Year Return",
+            value: "+18.4%",
+            trend: { path: "/statTrend" },
+          },
+        ],
       },
     });
     expect(result.success).toBe(false);
@@ -287,5 +325,45 @@ describe("MessageProcessor integration", () => {
     ]);
     expect(processor.model.surfacesMap.size).toBe(1);
     expect(processor.model.surfacesMap.has("stat")).toBe(true);
+  });
+});
+
+describe("StructureMessageSchema", () => {
+  // Every STRUCTURE_PROMPTS entry tells the LLM never to include an updateDataModel
+  // message -- this schema (used for the actual generateObject call, not
+  // A2uiMessageSchema) makes that a real validation guarantee, not just a prompt ask.
+  it("rejects an updateDataModel message, unlike the general A2uiMessageSchema", () => {
+    const message = {
+      version: "v0.9",
+      updateDataModel: { surfaceId: "stat", value: { statValue: "+18.4%" } },
+    };
+    expect(A2uiMessageSchema.safeParse(message).success).toBe(true);
+    expect(StructureMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("still accepts createSurface and updateComponents messages", () => {
+    expect(
+      StructureMessageSchema.safeParse({
+        version: "v0.9",
+        createSurface: { surfaceId: "stat", catalogId: CATALOG_ID },
+      }).success
+    ).toBe(true);
+    expect(
+      StructureMessageSchema.safeParse({
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "stat",
+          components: [
+            {
+              component: "StatCard",
+              id: "root",
+              label: "1-Year Return",
+              value: { path: "/statValue" },
+              trend: { path: "/statTrend" },
+            },
+          ],
+        },
+      }).success
+    ).toBe(true);
   });
 });

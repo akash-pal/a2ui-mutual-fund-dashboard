@@ -22,7 +22,14 @@ import {
 
 export const CATALOG_ID = "a2ui-mutual-fund-dashboard.local:v1";
 
-const envelope = { id: z.string(), weight: z.number().optional() };
+// `weight` isn't included here: it's part of the general A2UI envelope, but no
+// prompt in lib/agent.ts ever asks for it and nothing in this app reads it once a
+// component is rendered -- and per OpenAI's structured-output constraints (every
+// object schema field must be listed in `required`; there's no true "optional" key,
+// only required-and-nullable), keeping an unused field would mean either dropping
+// OpenAI support or making the LLM emit a meaningless `"weight": null` on every
+// component for no benefit. Simplest correct choice: don't ask for it at all.
+const envelope = { id: z.string() };
 
 // The component schemas' own dynamic fields use the permissive DynamicValue/
 // DynamicString/DynamicStringList unions at the *rendering* layer (required so the
@@ -47,7 +54,11 @@ export const AnyCatalogComponentSchema = z.discriminatedUnion("component", [
     ...StatCardPropsSchema.shape,
     label: literalTitle,
     value: CommonSchemas.DataBinding,
-    trend: CommonSchemas.DataBinding.optional(),
+    // Required, not .optional(): the single_fund prompt always asks for trend to be
+    // bound, and OpenAI's structured-output mode has no true "optional" concept
+    // (every field must be in `required`) -- required-and-always-bound is both what
+    // the prompt already promises and what OpenAI's schema validation demands.
+    trend: CommonSchemas.DataBinding,
   }),
   z.object({
     component: z.literal(NavChartApi.name),
@@ -114,7 +125,20 @@ export const A2uiMessageSchema = z.union([
   UpdateDataModelMessageSchema,
 ]);
 
+// Every STRUCTURE_PROMPTS entry in lib/agent.ts explicitly tells the LLM not to
+// include any updateDataModel messages -- the LLM only ever generates the page
+// layout (createSurface/updateComponents); real data is always assembled by this
+// app's own code afterward. Narrowing the schema passed to that LLM call to just
+// these two message types (instead of the full A2uiMessageSchema, which also
+// permits updateDataModel for the app's OWN generated messages) makes that
+// constraint a real type/validation guarantee instead of only a prompt request.
+export const StructureMessageSchema = z.union([
+  CreateSurfaceMessageSchema,
+  UpdateComponentsMessageSchema,
+]);
+
 export type A2uiMessage = z.infer<typeof A2uiMessageSchema>;
+export type StructureMessage = z.infer<typeof StructureMessageSchema>;
 export type CreateSurfaceMessage = z.infer<typeof CreateSurfaceMessageSchema>;
 export type UpdateComponentsMessage = z.infer<typeof UpdateComponentsMessageSchema>;
 export type UpdateDataModelMessage = z.infer<typeof UpdateDataModelMessageSchema>;
