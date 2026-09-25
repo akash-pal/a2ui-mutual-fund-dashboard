@@ -391,6 +391,132 @@ describe("buildA2uiResponse", () => {
     );
   });
 
+  it("throws when updateComponents defines a surface's root correctly but createSurface for it is missing", async () => {
+    // Regression: reproduced live against a real local model (Ollama) that produced
+    // an otherwise-perfect structure -- right components, right paths -- but omitted
+    // every createSurface message. That passed every check that only inspects
+    // updateComponents, then crashed at render time: MessageProcessor throws
+    // "Surface not found" the moment it processes an updateComponents message for a
+    // surface that was never created (node_modules/@a2ui/web_core/src/v0_9/
+    // processing/message-processor.js:263-266) -- and since it validated fine, it
+    // would have been cached and broken every subsequent single_fund query.
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                messages: [
+                  // No createSurface for "stat" at all -- everything else is valid.
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "stat",
+                      components: [
+                        {
+                          component: "StatCard",
+                          id: "root",
+                          label: "x",
+                          value: { path: "/statValue" },
+                          trend: { path: "/statTrend" },
+                        },
+                      ],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "chart", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "chart",
+                      components: [{ component: "NavChart", id: "root", title: "x", points: { path: "/navPoints" } }],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "insight",
+                      components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+                    },
+                  },
+                ],
+              }),
+            },
+          ],
+          warnings: [],
+        },
+      }) as never
+    );
+    await expect(buildA2uiResponse({ type: "single_fund", schemeCodes: [1] })).rejects.toThrow(
+      /missing expected surface: stat \(no createSurface message\)/
+    );
+  });
+
+  it("throws when createSurface's catalogId doesn't match this app's catalog", async () => {
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                messages: [
+                  { version: "v0.9", createSurface: { surfaceId: "stat", catalogId: "some-other-catalog:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "stat",
+                      components: [
+                        {
+                          component: "StatCard",
+                          id: "root",
+                          label: "x",
+                          value: { path: "/statValue" },
+                          trend: { path: "/statTrend" },
+                        },
+                      ],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "chart", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "chart",
+                      components: [{ component: "NavChart", id: "root", title: "x", points: { path: "/navPoints" } }],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "insight",
+                      components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+                    },
+                  },
+                ],
+              }),
+            },
+          ],
+          warnings: [],
+        },
+      }) as never
+    );
+    await expect(buildA2uiResponse({ type: "single_fund", schemeCodes: [1] })).rejects.toThrow(
+      /createSurface has catalogId "some-other-catalog:v1", expected/
+    );
+  });
+
   it("throws when a surface's root component doesn't match the expected type, even though the surface ID is right", async () => {
     // Regression for the weaker check this replaced: it only confirmed a surface
     // with the right ID existed, not that the RIGHT component was in it -- this

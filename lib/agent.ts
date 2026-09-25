@@ -85,8 +85,39 @@ function findRootComponent(
   return undefined;
 }
 
+function findSurfaceCreation(
+  messages: A2uiMessage[],
+  surfaceId: string
+): { surfaceId: string; catalogId: string } | undefined {
+  for (const m of messages) {
+    if ("createSurface" in m && m.createSurface.surfaceId === surfaceId) {
+      return m.createSurface;
+    }
+  }
+  return undefined;
+}
+
 function validateStructure(intentType: ResolvedIntent["type"], messages: A2uiMessage[]): void {
   for (const [surfaceId, contract] of Object.entries(EXPECTED_STRUCTURE[intentType])) {
+    // A structure whose updateComponents is otherwise perfect but never creates the
+    // surface is still worthless: MessageProcessor throws "Surface not found" the
+    // moment it processes that updateComponents message (confirmed directly against
+    // node_modules/@a2ui/web_core/src/v0_9/processing/message-processor.js:263-266)
+    // -- reproduced live against a real local model that omitted every createSurface
+    // message while still passing every other check here.
+    const surfaceCreation = findSurfaceCreation(messages, surfaceId);
+    if (!surfaceCreation) {
+      throw new Error(
+        `LLM-generated structure for intent "${intentType}" is missing expected surface: ${surfaceId} (no createSurface message)`
+      );
+    }
+    if (surfaceCreation.catalogId !== CATALOG_ID) {
+      throw new Error(
+        `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" createSurface has catalogId ` +
+          `"${surfaceCreation.catalogId}", expected "${CATALOG_ID}"`
+      );
+    }
+
     const root = findRootComponent(messages, surfaceId);
     if (!root) {
       throw new Error(
@@ -114,8 +145,13 @@ function validateStructure(intentType: ResolvedIntent["type"], messages: A2uiMes
 async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiMessage[]> {
   const cacheKey = buildCacheKey(intentType);
   const cached = getCachedSchema<A2uiMessage[]>(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    console.log(`[agent] fetchStructure(${intentType}): cache hit (${cacheKey})`);
+    return cached;
+  }
 
+  console.log(`[agent] fetchStructure(${intentType}): cache miss (${cacheKey}), calling LLM...`);
+  const startedAt = Date.now();
   const { object } = await generateObject({
     model: getModel(),
     // `@ai-sdk/provider-utils`'s FlexibleSchema/InferSchema conditional types check the schema
@@ -135,6 +171,7 @@ async function fetchStructure(intentType: ResolvedIntent["type"]): Promise<A2uiM
     prompt: STRUCTURE_PROMPTS[intentType],
   });
 
+  console.log(`[agent] fetchStructure(${intentType}): LLM responded in ${Date.now() - startedAt}ms`);
   validateStructure(intentType, object.messages);
 
   setCachedSchema(cacheKey, object.messages);
