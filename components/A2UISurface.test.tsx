@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { A2UISurfaceList } from "./A2UISurface";
 import { CATALOG_ID, type A2uiMessage } from "@/lib/catalog";
 
@@ -211,5 +211,43 @@ describe("A2UISurfaceList", () => {
       { date: "01-01-2026", nav: 100 },
       { date: "02-01-2026", nav: 105 },
     ]);
+  });
+
+  it("renders correctly under React.StrictMode (which double-invokes effects on mount in dev)", () => {
+    // None of the tests above catch this: @testing-library/react's render() does not
+    // wrap in StrictMode by default, so they never exercise dev mode's mount ->
+    // simulated-unmount -> mount-again effect cycle. In the real app, every query's
+    // <ErrorBoundary key={queryCount}> gives this component a fresh `key`, forcing a
+    // real remount on every single query (not just once per page load) -- so this
+    // double-invoke happens on every query in dev, not just the first render ever.
+    const messages: A2uiMessage[] = [
+      { version: "v0.9", createSurface: { surfaceId: "stat", catalogId: CATALOG_ID } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "stat",
+          components: [
+            {
+              component: "StatCard",
+              id: "root",
+              label: "1-Year Return",
+              value: { path: "/statValue" },
+              trend: { path: "/statTrend" },
+            },
+          ],
+        },
+      },
+      { version: "v0.9", updateDataModel: { surfaceId: "stat", value: { statValue: "+18.4%" } } },
+    ];
+
+    expect(() =>
+      render(
+        <StrictMode>
+          <A2UISurfaceList messages={messages} />
+        </StrictMode>
+      )
+    ).not.toThrow();
+    expect(screen.getByText("1-Year Return")).toBeInTheDocument();
+    expect(screen.getByText("+18.4%")).toBeInTheDocument();
   });
 });
