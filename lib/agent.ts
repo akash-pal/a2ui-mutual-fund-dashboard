@@ -124,6 +124,21 @@ function validateStructure(intentType: ResolvedIntent["type"], messages: A2uiMes
         `LLM-generated structure for intent "${intentType}" is missing expected surface: ${surfaceId}`
       );
     }
+    // Existence alone isn't enough -- MessageProcessor processes messages strictly in
+    // array order, so createSurface must come BEFORE its surface's updateComponents,
+    // not just appear somewhere in the array.
+    const creationIndex = messages.findIndex(
+      (m) => "createSurface" in m && m.createSurface.surfaceId === surfaceId
+    );
+    const rootUpdateIndex = messages.findIndex(
+      (m) => "updateComponents" in m && m.updateComponents.surfaceId === surfaceId
+    );
+    if (rootUpdateIndex < creationIndex) {
+      throw new Error(
+        `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" has updateComponents ` +
+          `before its createSurface message`
+      );
+    }
     if (root.component !== contract.component) {
       throw new Error(
         `LLM-generated structure for intent "${intentType}" surface "${surfaceId}" has component ` +

@@ -517,6 +517,70 @@ describe("buildA2uiResponse", () => {
     );
   });
 
+  it("throws when updateComponents for a surface appears before its createSurface message", async () => {
+    // MessageProcessor processes messages strictly in array order -- a createSurface
+    // that exists but comes AFTER its surface's updateComponents is just as broken as
+    // one that's missing entirely, since the surface still doesn't exist yet when
+    // updateComponents is processed.
+    vi.mocked(getModel).mockReturnValue(
+      new MockLanguageModelV4({
+        doGenerate: {
+          finishReason: { unified: "stop" as const, raw: "stop" },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 10, text: 10, reasoning: undefined },
+          },
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                messages: [
+                  // updateComponents for "stat" comes BEFORE its createSurface.
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "stat",
+                      components: [
+                        {
+                          component: "StatCard",
+                          id: "root",
+                          label: "x",
+                          value: { path: "/statValue" },
+                          trend: { path: "/statTrend" },
+                        },
+                      ],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "stat", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  { version: "v0.9", createSurface: { surfaceId: "chart", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "chart",
+                      components: [{ component: "NavChart", id: "root", title: "x", points: { path: "/navPoints" } }],
+                    },
+                  },
+                  { version: "v0.9", createSurface: { surfaceId: "insight", catalogId: "a2ui-mutual-fund-dashboard.local:v1" } },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "insight",
+                      components: [{ component: "InsightCallout", id: "root", text: { path: "/insightText" } }],
+                    },
+                  },
+                ],
+              }),
+            },
+          ],
+          warnings: [],
+        },
+      }) as never
+    );
+    await expect(buildA2uiResponse({ type: "single_fund", schemeCodes: [1] })).rejects.toThrow(
+      /surface "stat" has updateComponents before its createSurface message/
+    );
+  });
+
   it("throws when a surface's root component doesn't match the expected type, even though the surface ID is right", async () => {
     // Regression for the weaker check this replaced: it only confirmed a surface
     // with the right ID existed, not that the RIGHT component was in it -- this
