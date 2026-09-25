@@ -8,9 +8,43 @@ full implementation plan this is executing.
 ## In progress
 
 All 18 planned tasks are complete, and every finding from the final whole-branch
-review has been addressed, including one significant bug (see below) found only by
-testing live against the real APIs. What's left is a final closing pass over the
-whole branch before this is ready to merge.
+review has been addressed. Live end-to-end testing afterward (see "Live testing"
+below) found two more real bugs that no earlier review or test caught. What's left
+is a final closing pass over the whole branch before this is ready to merge.
+
+## Live testing found and fixed two more real bugs
+
+After everything above, the app was actually run and tested with real queries
+against real (and, once credits ran low, local) models. That surfaced two bugs
+that no test or review had caught, because they only show up with a real model's
+actual output or in a running browser:
+
+- A real model produced an otherwise-correct response — right components, right
+  data bindings — but left out a required setup step for each section of the page.
+  The app's validation before caching only checked the content of each section, not
+  that this setup step existed at all, so a response like this would have been
+  cached and broken every subsequent question of that type until a restart. Fixed,
+  and hardened further to also check the setup step happens in the right order, not
+  just that it exists somewhere.
+- Every single question crashed while running the app locally, with a "surface
+  already exists" error — caught by the earlier error-boundary fix, but a crash
+  nonetheless. This turned out to be a genuine regression from that very fix: giving
+  each question's error boundary a clean slate also caused a page-rendering safety
+  check (React's Strict Mode, which intentionally runs setup code twice in
+  development to catch exactly this kind of bug) to run the app's message-processing
+  step twice, and it wasn't built to handle running twice. Fixed by making that step
+  safe to run more than once, and added a test that specifically checks for this
+  (none of the existing tests did, since they didn't exercise that safety check).
+
+Also added: an env-var override so the app's model choice can point at a local
+model (e.g. via Ollama) instead of the real Anthropic/OpenAI APIs, useful for
+testing without spending API credit; and request-lifecycle logging (question
+received, resolved intent, cache hit/miss, response time) to make it easy to see
+where time is actually going on a slow request.
+
+Confirmed working end to end against a real local model after these fixes: asking
+about a real fund now correctly shows its 1-year return, a NAV history chart, and a
+plain-language summary.
 
 ## Final review findings
 
