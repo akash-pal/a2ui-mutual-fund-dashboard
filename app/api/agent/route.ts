@@ -38,9 +38,12 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const startedAt = Date.now();
+  console.log(`[route] POST /api/agent: query=${JSON.stringify(query)}`);
   try {
     const schemes = await fetchSchemeList();
     const intent = resolveIntent(query, schemes);
+    console.log(`[route] resolved intent: ${intent.type}, schemeCodes=${JSON.stringify(intent.schemeCodes)}`);
 
     if (intent.schemeCodes.length === 0) {
       return Response.json(
@@ -50,6 +53,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const messages = await buildA2uiResponse(intent);
+    console.log(`[route] done in ${Date.now() - startedAt}ms, ${messages.length} messages`);
 
     return Response.json({ messages });
   } catch (error) {
@@ -58,7 +62,7 @@ export async function POST(request: Request): Promise<Response> {
     // response, which has no `error` JSON field -- the client's fallback ("Request
     // failed: <status>") is far less useful than the specific messages this route
     // already returns for its other two failure cases.
-    console.error("POST /api/agent failed:", error);
+    console.error(`[route] failed after ${Date.now() - startedAt}ms:`, error);
     return Response.json(
       { error: "Something went wrong processing your request. Please try again." },
       { status: 500 }
