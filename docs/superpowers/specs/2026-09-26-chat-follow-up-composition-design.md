@@ -76,17 +76,14 @@ User turn: "What about its 3-year return?"
 ### Follow-up resolution (`lib/followup.ts`, new)
 
 ```typescript
-export type FollowUpResolution =
-  | { type: "query"; text: string }
-  | { type: "text_answer"; text: string };
-
 export interface ConversationTurn {
   role: "user" | "assistant";
-  // For an assistant turn that produced a dashboard, record enough to give the
-  // LLM real context without replaying the full A2UI message array (which can
-  // be large and isn't meaningful to it as prose): the resolved intent type and
-  // a plain-language description of what was shown.
   content: string;
+}
+
+export interface FollowUpResolution {
+  type: "query" | "text_answer";
+  text: string;
 }
 
 export async function resolveFollowUp(
@@ -96,79 +93,138 @@ export async function resolveFollowUp(
 ```
 
 - Uses `generateObject` (existing `getModel()` from `lib/llm.ts`, no new provider
-  wiring) against a small schema: a discriminated union of the two branches
-  above. Same OpenAI-structured-output constraints already handled elsewhere in
-  this codebase apply (every field required, no `.optional()`).
+  wiring) against a **flat object schema** `{ type: "query" | "text_answer",
+  text: string }`, not a discriminated union: OpenAI structured-output mode
+  requires the root schema to be an object, and a union compiles to a root-level
+  `anyOf` that OpenAI rejects. Both fields required, no `.optional()` (same
+  constraint already handled in `lib/catalog-messages.ts`). Plain `zod` (v4) is
+  fine here — the `zod3` alias is only needed for schemas that embed
+  `@a2ui/web_core`'s own zod3 types, which this one doesn't.
 - If `history` is empty (first message of a session), skip the LLM call entirely
-  and treat the message as already self-contained — no behavior change for a
+  and return `{ type: "query", text: message }` — no behavior change for a
   fresh session, and no added latency/cost for the common single-question case.
 - Prompt instructs: rewrite the message into one that names every fund
-  explicitly and states the specific data being asked for, using the
-  conversation history to fill in anything the new message leaves implicit; if
-  the question asks for something this app's data cannot answer (anything
+  explicitly and states the specific data being asked for, **copying fund names
+  exactly as they appear in the conversation** (`resolveIntent` matches by
+  substring against real scheme names, so a paraphrased name won't resolve);
+  if the question asks for something this app's data cannot answer (anything
   other than NAV-derived trailing returns, comparison, or category ranking —
   e.g. expense ratio, holdings, AUM), return a `text_answer` explaining that
-  plainly instead of guessing.
+  plainly instead of guessing. The prompt also forbids stating any figure in a
+  `text_answer`.
+- **Figure guard on `text_answer`.** The prompt alone can't guarantee a free-text
+  reply won't invent a number ("its expense ratio is 0.8%"), which would be a
+  fabricated financial figure presented as fact. `resolveFollowUp` checks the
+  text deterministically — a percentage (`\d+(\.\d+)?\s*%`) or a rupee amount
+  (`₹` or `Rs.` followed by a digit) — and if either appears, replaces the reply
+  with a fixed message saying the app can only report NAV-based returns,
+  comparisons, and category rankings. Fund names containing digits
+  ("Nifty 50") don't trip it, since neither pattern matches them.
+- **Length guard on the rewrite.** A `query` result longer than the route's
+  existing `MAX_QUERY_LENGTH` (500) is treated as a failed rewrite (the route's
+  existing 500-path handles the throw), so the rewrite can't bypass the bound
+  the route already places on what reaches `resolveIntent`.
 - The rewritten query still goes through the full existing `resolveIntent`
   substring-matching pipeline — if the rewrite doesn't actually name a real
   fund clearly enough for that to resolve, the existing "couldn't find a
   matching fund" 400 response fires exactly as it does today. No new failure
   mode is introduced at that boundary.
 
+### History content stays number-free
+
+An assistant turn's `content` (what the NEXT request sends back as `history`)
+must not contain the figures shown on screen. The insight text for a dashboard
+says things like "returned -5.3% over the trailing 1 year"; replaying that to
+the rewrite LLM would mean it sees literal financial figures, which is the one
+thing ADR-0001 says it never does. So a dashboard turn's history content is a
+number-free summary naming the intent and the exact fund names, e.g.
+*"Showed a single-fund dashboard for: UTI Nifty 50 Index Fund - Direct Plan -
+Growth"*. A text-answer turn's content is its text (already guarded above).
+
+The client can't build this summary itself — the response only carries A2UI
+messages, not the resolved intent or scheme names. The route has both in scope
+(`intent` and the loaded `schemes` list), so it builds the summary and returns
+it (`lib/turn-summary.ts`, new, pure function, unit-tested on its own).
+
 ### Route handler (`app/api/agent/route.ts`, modified)
 
 - Request body gains an optional `history: ConversationTurn[]` field (empty/
-  absent for a fresh session).
+  absent for a fresh session). **`history` is untrusted input and is validated
+  server-side** with zod before use: an array of at most 10 entries, each
+  `{ role: "user" | "assistant", content: string }` with content at most 1,000
+  characters. Anything else is a 400. The existing 10KB `MAX_REQUEST_BODY_BYTES`
+  cap is unchanged and still bounds the whole body; 10 × 1,000 chars sits
+  comfortably under it.
 - New flow: `resolveFollowUp(history, query)` → branch:
   - `text_answer`: return `{ type: "text_answer", text }` directly, skipping
     `resolveIntent`/`buildA2uiResponse` entirely.
   - `query`: proceed with `resolveIntent(rewrittenText, schemes)` →
     `buildA2uiResponse(intent)` exactly as today, wrapped in the existing
-    try/catch, existing query-length guard applied to the *original* `query`
-    field (the rewrite happens server-side, after that guard, so it still
-    bounds what the client can send as the new message).
-- The existing `MAX_REQUEST_BODY_BYTES` (10KB) cap now covers `history` too, not
-  just `query` — a real multi-turn conversation's turn summaries could plausibly
-  approach that over a long session. Client keeps `history` bounded to the last
-  N turns (N to be picked during implementation, e.g. 10) before sending, both
-  to stay under that cap and because a rewrite prompt doesn't need unbounded
-  history to resolve "what does 'it' refer to" — only recent context matters for
-  that. `MAX_REQUEST_BODY_BYTES` itself does not need to change.
+    try/catch. The existing query-length guard still applies to the *original*
+    `query` field, before any of this runs.
 - Response shape gains a discriminant so the client knows which kind of turn
-  it got back: `{ type: "dashboard", messages: A2uiMessage[] } | { type: "text_answer", text: string }`.
+  it got back: `{ type: "dashboard", messages: A2uiMessage[], summary: string } | { type: "text_answer", text: string }`.
+
+### Single-fund insight covers 3Y/5Y (`lib/insights.ts`, modified)
+
+The spec's own headline example — "what about its 3-year return?" — would
+otherwise not work: it rewrites to a single-fund query, and the single-fund
+dashboard only shows the 1-year return (both the StatCard's label and the
+insight text). The user would get the same dashboard back with no answer.
+`generateSingleFundInsight` already receives the full `TrailingReturns`
+(1M/3M/1Y/3Y/5Y); it's extended to also state the 3-year and 5-year returns
+when they're available. Deterministic, no prompt or schema change, and the
+3Y/5Y figures come from the same `computeTrailingReturns` the rest of the app
+already trusts.
 
 ### Client (`app/page.tsx`, `components/ChatTranscript.tsx` new)
 
 - Replaces the current single-dashboard layout with a scrolling list of turns.
-- Each turn keeps its own `<ErrorBoundary>` (this app already has one per
-  Finding #3 from the earlier review) — a crash rendering one historical turn's
-  dashboard must not take down the rest of the transcript, whereas today a
-  fresh `key` remounts the *entire* result on every question.
-- Client sends the full turn history with each request (no server-side session
-  store — consistent with the app's existing stateless-per-request design
-  documented in ADR-0001's Consequences: no auth, no multi-tenancy, single
-  user, in-memory-only state).
-- A turn's `content` summary (used for the NEXT request's `history`) is built
-  client-side from the response: for a dashboard turn, a short plain-language
-  description (fund name(s) + intent type — not the full A2UI message array);
-  for a text-answer turn, the text itself.
+- The user's turn appears immediately on send, followed by a pending indicator
+  until the response arrives. The input clears on send.
+- Each assistant dashboard turn gets its own `<ErrorBoundary>` keyed by turn id
+  — a crash rendering one turn's dashboard must not take down the rest of the
+  transcript. (Today a single boundary wraps the one visible result, remounted
+  on every question via a `queryCount` key; that key goes away.)
+- A failed request becomes an error turn in the transcript (showing the route's
+  `error` message) rather than a banner above the input. Error turns are
+  **excluded from `history`** — a failed attempt isn't context the rewrite
+  needs, and replaying it would only confuse it.
+- Client sends history with each request (no server-side session store —
+  consistent with the app's existing stateless-per-request design documented in
+  ADR-0001's Consequences: no auth, no multi-tenancy, single user, in-memory-only
+  state), trimmed to the last 10 entries before sending so it stays within the
+  server's limit.
+- The user turn's history content is the text the user actually typed (not the
+  rewritten query). The assistant turn's is the route's `summary` (dashboard) or
+  `text` (text answer).
+
+### ADR-0001 (modified)
+
+Add an "Amended by" line pointing at this spec, so a reader of the ADR alone
+isn't misled by its "not chat" statement.
 
 ### Testing
 
-- `lib/followup.test.ts`: empty history → treated as self-contained (no LLM
-  call); rewrite reusing a remembered single fund; rewrite combining a
-  remembered fund with a newly-named one for a comparison; falls back to
-  `text_answer` for a question outside the app's data (e.g. expense ratio) —
-  each verified against a mocked LLM response, matching this codebase's
-  existing `MockLanguageModelV4` test pattern.
-- `app/api/agent/route.test.ts`: new tests for both branches (history present +
-  `text_answer` result skips `resolveIntent`/`buildA2uiResponse` entirely;
-  history present + `query` result flows into the existing pipeline
-  unchanged); existing tests (empty/no history) continue to pass unmodified,
-  since empty history means no behavior change.
-- `components/ChatTranscript.test.tsx` (new) / updates to
-  `components/A2UISurface.test.tsx`: each turn renders independently and a
-  crash in one turn's dashboard doesn't remove other turns from the DOM.
+- `lib/followup.test.ts`: empty history → returns the message unchanged without
+  calling the LLM; rewrite reusing a remembered single fund; rewrite combining
+  a remembered fund with a newly-named one for a comparison; `text_answer` for a
+  question outside the app's data; figure guard replaces a `text_answer`
+  containing a percentage or rupee amount, and does *not* trip on a fund name
+  like "Nifty 50"; over-length rewrite throws — each against a mocked LLM
+  response, matching this codebase's existing `MockLanguageModelV4` pattern.
+- `lib/turn-summary.test.ts`: summaries for each intent type contain the exact
+  scheme names and no digits-followed-by-`%`.
+- `lib/insights.test.ts`: single-fund insight states 3Y/5Y when available and
+  omits them cleanly when null.
+- `app/api/agent/route.test.ts`: `text_answer` result skips
+  `resolveIntent`/`buildA2uiResponse` entirely; `query` result flows the
+  *rewritten* text into `resolveIntent`; dashboard response includes `type` and
+  `summary`; malformed or oversized `history` → 400; existing no-history tests
+  keep passing (only the response shape assertion changes, to expect
+  `type: "dashboard"`).
+- `components/ChatTranscript.test.tsx` (new): renders user, dashboard, text, and
+  error turns; a crash in one dashboard turn leaves the other turns in the DOM.
 
 ## Consequences
 
