@@ -1,0 +1,107 @@
+<svg viewBox="0 0 1200 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="End-to-end request flow: a browser query resolves intent deterministically, reuses or regenerates a UI structure from an LLM behind a cache, always refetches fresh NAV data, and renders the result through the A2UI catalog.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="620" fill="#ffffff"/>
+
+  <!-- Section labels -->
+  <text x="20" y="30" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#64748b" letter-spacing="0.04em">BROWSER</text>
+  <text x="20" y="230" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#64748b" letter-spacing="0.04em">NEXT.JS ROUTE HANDLER (/api/agent)</text>
+  <text x="20" y="500" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#64748b" letter-spacing="0.04em">BROWSER (RENDER)</text>
+
+  <!-- Browser: query input -->
+  <rect x="20" y="45" width="220" height="60" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+  <text x="35" y="70" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">QueryInput</text>
+  <text x="35" y="88" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">"How has fund X done?"</text>
+
+  <!-- arrow down to route handler -->
+  <path d="M130,105 L130,245" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="140" y="180" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">POST /api/agent</text>
+
+  <!-- resolveIntent -->
+  <rect x="20" y="245" width="220" height="70" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+  <text x="35" y="268" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">resolveIntent()</text>
+  <text x="35" y="285" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">deterministic, no LLM</text>
+  <text x="35" y="300" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">matches mfapi.in scheme list</text>
+
+  <!-- arrow right to cache decision -->
+  <path d="M240,280 L320,280" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Cache decision diamond -->
+  <polygon points="400,245 480,280 400,315 320,280" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+  <text x="400" y="275" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#334155">structure</text>
+  <text x="400" y="290" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#334155">cached?</text>
+
+  <!-- MISS branch up to LLM -->
+  <path d="M400,245 L400,150" stroke="#b45309" stroke-width="1.5" fill="none" marker-end="url(#arrowAmber)"/>
+  <text x="410" y="200" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#b45309">miss</text>
+  <rect x="290" y="70" width="220" height="80" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5"/>
+  <text x="305" y="93" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">generateObject()</text>
+  <text x="305" y="110" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">Anthropic / OpenAI</text>
+  <text x="305" y="125" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">produces createSurface +</text>
+  <text x="305" y="140" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">updateComponents structure</text>
+
+  <!-- LLM validated -> cache -->
+  <path d="M510,110 L610,110 L610,280 L480,280" stroke="#b45309" stroke-width="1.5" fill="none" marker-end="url(#arrowAmber)"/>
+  <text x="620" y="105" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#b45309">validateStructure()</text>
+  <text x="620" y="120" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#b45309">then cache it</text>
+
+  <!-- HIT branch straight through -->
+  <text x="400" y="335" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#2563eb">hit</text>
+  <path d="M480,280 L560,280" stroke="#2563eb" stroke-width="1.5" fill="none" marker-end="url(#arrowBlue)"/>
+
+  <!-- fetchSchemeNav always -->
+  <rect x="560" y="245" width="230" height="70" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+  <text x="575" y="268" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">fetchSchemeNav()</text>
+  <text x="575" y="285" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">always fresh, every request</text>
+  <text x="575" y="300" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">mfapi.in NAV history</text>
+
+  <path d="M790,280 L860,280" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- buildA2uiResponse -->
+  <rect x="860" y="245" width="220" height="70" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+  <text x="875" y="268" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">buildA2uiResponse()</text>
+  <text x="875" y="285" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">structure + computed metrics</text>
+  <text x="875" y="300" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">→ A2UI messages (JSON)</text>
+
+  <!-- down to browser render -->
+  <path d="M970,315 L970,420 L130,420 L130,485" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="500" y="410" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">response streamed back</text>
+
+  <!-- Browser render -->
+  <rect x="20" y="485" width="260" height="95" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+  <text x="35" y="508" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">MessageProcessor</text>
+  <text x="35" y="525" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">@a2ui/web_core</text>
+  <text x="35" y="542" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">builds the surface/data model</text>
+  <text x="35" y="559" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">from the incoming messages</text>
+
+  <path d="M280,530 L360,530" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <rect x="360" y="485" width="330" height="95" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+  <text x="375" y="508" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a">A2uiSurface renders the catalog</text>
+  <text x="375" y="525" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">@a2ui/react</text>
+  <text x="375" y="542" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">StatCard · NavChart · ComparisonTable</text>
+  <text x="375" y="559" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">RankedList · InsightCallout</text>
+
+  <!-- Legend -->
+  <g transform="translate(880,470)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#b45309" stroke-width="1.5" marker-end="url(#arrowAmber)"/>
+    <text x="32" y="4" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">cache miss (calls the LLM)</text>
+    <line x1="0" y1="24" x2="24" y2="24" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+    <text x="32" y="28" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">cache hit (skips the LLM)</text>
+    <line x1="0" y1="48" x2="24" y2="48" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="32" y="52" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">always runs</text>
+  </g>
+
+  <!-- footer note -->
+  <text x="20" y="600" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">The LLM never sees or emits literal NAV figures — only the page structure. Real numbers are always computed fresh and merged in afterward.</text>
+</svg>
