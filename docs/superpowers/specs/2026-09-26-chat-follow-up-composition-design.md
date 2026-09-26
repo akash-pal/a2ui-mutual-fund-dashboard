@@ -151,10 +151,11 @@ it (`lib/turn-summary.ts`, new, pure function, unit-tested on its own).
 - Request body gains an optional `history: ConversationTurn[]` field (empty/
   absent for a fresh session). **`history` is untrusted input and is validated
   server-side** with zod before use: an array of at most 10 entries, each
-  `{ role: "user" | "assistant", content: string }` with content at most 1,000
-  characters. Anything else is a 400. The existing 10KB `MAX_REQUEST_BODY_BYTES`
-  cap is unchanged and still bounds the whole body; 10 × 1,000 chars sits
-  comfortably under it.
+  `{ role: "user" | "assistant", content: string }` with content at most 500
+  characters (the same bound as the query itself). Anything else is a 400.
+  `MAX_REQUEST_BODY_BYTES` rises from 10KB to 20KB: a maximal valid request
+  (10 × 500-char entries plus a 500-char query) is ~6KB of ASCII but up to ~17KB
+  if every character is multi-byte, so 10KB would reject some valid requests.
 - New flow: `resolveFollowUp(history, query)` → branch:
   - `text_answer`: return `{ type: "text_answer", text }` directly, skipping
     `resolveIntent`/`buildA2uiResponse` entirely.
@@ -187,14 +188,17 @@ already trusts.
   transcript. (Today a single boundary wraps the one visible result, remounted
   on every question via a `queryCount` key; that key goes away.)
 - A failed request becomes an error turn in the transcript (showing the route's
-  `error` message) rather than a banner above the input. Error turns are
-  **excluded from `history`** — a failed attempt isn't context the rewrite
-  needs, and replaying it would only confuse it.
+  `error` message) rather than a banner above the input. A failed attempt —
+  the error turn *and* the question that produced it — is **excluded from
+  `history`**: it isn't context the rewrite needs, and a dangling question with
+  no answer would only confuse it.
 - Client sends history with each request (no server-side session store —
   consistent with the app's existing stateless-per-request design documented in
   ADR-0001's Consequences: no auth, no multi-tenancy, single user, in-memory-only
-  state), trimmed to the last 10 entries before sending so it stays within the
-  server's limit.
+  state), trimmed to the last 10 entries and with each entry's content truncated
+  to 500 characters before sending. The truncation matters: a long `text_answer`
+  from the LLM would otherwise exceed the server's per-entry limit, and every
+  later question in the conversation would then fail validation.
 - The user turn's history content is the text the user actually typed (not the
   rewritten query). The assistant turn's is the route's `summary` (dashboard) or
   `text` (text answer).
