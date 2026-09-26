@@ -3,12 +3,22 @@
 A Next.js demo applying the A2UI (Agent-to-UI) declarative generative UI
 pattern to natural-language analysis of Indian mutual funds.
 
+![Demo: typing a natural-language question about a real mutual fund and getting back a generated dashboard with its 1-year return, a NAV history chart, and a plain-language summary.](docs/images/demo.gif)
+
 ## Architecture
 
 See [docs/adr/0001-mutual-fund-a2ui-dashboard-architecture.md](docs/adr/0001-mutual-fund-a2ui-dashboard-architecture.md)
 for the full architecture decision record, including why the app skips the
 AG-UI/CopilotKit runtime, why it uses fixed-schema-per-intent caching, and
 why the LLM never sees or emits literal financial figures.
+
+![End-to-end request flow: a query resolves intent deterministically, reuses or regenerates a UI structure from an LLM behind a cache, always refetches fresh NAV data, and renders the result through the fixed A2UI component catalog.](docs/images/end-to-end-flow.svg)
+
+The LLM is only ever asked to produce *structure* (which of the five catalog
+components to show and how they're bound to data paths) — never to see or
+emit a literal NAV figure or return percentage. Those are always computed
+deterministically from fresh `mfapi.in` data and merged in afterward, whether
+the structure came from a fresh LLM call or the cache.
 
 ## Setup
 
